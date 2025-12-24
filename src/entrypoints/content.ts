@@ -114,6 +114,12 @@ export default defineContentScript({
         // --- Processing Loop ---
         // Re-read state to ensure we have the latest curriculum array
         state = await downloadState.getValue();
+        
+        // Guard: Ensure courseId is available
+        if (!state.courseId) {
+          throw new Error('Course ID not available. Cannot proceed with download.');
+        }
+        
         const curriculum = [...state.curriculum];
 
         for (let i = 0; i < curriculum.length; i++) {
@@ -138,7 +144,7 @@ export default defineContentScript({
           });
 
           try {
-            const transcript = await fetchTranscript(state.courseId!, item.id);
+            const transcript = await fetchTranscript(state.courseId, item.id);
             
             // Update item in local array
             curriculum[i].isCompleted = true;
