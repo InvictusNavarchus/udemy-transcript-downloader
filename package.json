@@ -1,21 +1,25 @@
 {
-  "name": "wxt-starter",
-  "description": "manifest.json description",
+  "name": "udemy-transcript-downloader",
+  "description": "Download course transcripts as Markdown / Zip.",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
-    "dev:firefox": "wxt -b firefox",
+    "dev:firefox": "wxt -b firefox --mv3",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
-    "zip:firefox": "wxt zip -b firefox",
+    "zip:firefox": "wxt zip -b firefox --mv3",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
+    "@wxt-dev/auto-icons": "^1.1.0",
     "typescript": "^5.9.3",
     "wxt": "^0.20.6"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
   }
 }
