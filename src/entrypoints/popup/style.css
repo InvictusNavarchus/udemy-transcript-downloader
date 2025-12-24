@@ -73,7 +73,18 @@ h2 { font-size: 14px; margin: 0 0 8px 0; white-space: nowrap; overflow: hidden; 
   font-size: 13px;
 }
 
+.btn:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
 .primary { background: var(--primary); color: white; }
+.primary:focus-visible { outline-color: var(--primary); }
+
 .secondary { background: #2d2f31; color: white; }
+.secondary:focus-visible { outline-color: #2d2f31; }
+
 .warning { background: #ffb300; color: black; }
+.warning:focus-visible { outline-color: #ffb300; }
+
 .hidden { display: none; }

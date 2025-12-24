@@ -2,16 +2,23 @@ import { browser } from 'wxt/browser';
 import { downloadState } from '@/utils/storage';
 import { ProcessingState } from '@/utils/types';
 
+// Helper for safe element retrieval
+function getElement<T extends HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`Required element #${id} not found`);
+  return el as T;
+}
+
 // Elements
 const els = {
-  title: document.getElementById('course-title')!,
-  badge: document.getElementById('status-badge')!,
-  fill: document.getElementById('fill')!,
-  count: document.getElementById('count')!,
-  task: document.getElementById('task')!,
-  start: document.getElementById('btn-start')!,
-  resume: document.getElementById('btn-resume')!,
-  pause: document.getElementById('btn-pause')!
+  title: getElement<HTMLElement>('course-title'),
+  badge: getElement<HTMLElement>('status-badge'),
+  fill: getElement<HTMLElement>('fill'),
+  count: getElement<HTMLElement>('count'),
+  task: getElement<HTMLElement>('task'),
+  start: getElement<HTMLButtonElement>('btn-start'),
+  resume: getElement<HTMLButtonElement>('btn-resume'),
+  pause: getElement<HTMLButtonElement>('btn-pause')
 };
 
 // 1. Initial Render
@@ -58,6 +65,13 @@ function render(state: ProcessingState) {
 // Button Actions
 async function send(action: 'START' | 'RESUME' | 'PAUSE') {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  
+  // Verify we're on a Udemy course page
+  if (!tab?.url?.includes('udemy.com/course/')) {
+    els.task.textContent = 'Please open a Udemy course page first.';
+    return;
+  }
+  
   if (tab?.id) {
     try {
       await browser.tabs.sendMessage(tab.id, { action });

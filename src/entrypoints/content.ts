@@ -51,9 +51,14 @@ export default defineContentScript({
       if (!enCaption?.url) return null;
 
       // Fetch VTT content
-      const vttRes = await fetch(enCaption.url);
-      const vttText = await vttRes.text();
-      return vttToMarkdown(vttText);
+      try {
+        const vttRes = await fetch(enCaption.url);
+        if (!vttRes.ok) return null;
+        const vttText = await vttRes.text();
+        return vttToMarkdown(vttText);
+      } catch {
+        return null;
+      }
     };
 
     const processDownload = async (resume = false) => {
@@ -83,7 +88,7 @@ export default defineContentScript({
             title: item.title,
             sort_order: item.sort_order,
             asset: item.asset,
-            type: item._class,
+            type: (['chapter', 'lecture', 'quiz'].includes(item._class) ? item._class : 'other') as UdemyCurriculumItem['type'],
             isCompleted: false
           }));
 
@@ -144,20 +149,21 @@ export default defineContentScript({
             }
 
             // 3. Save State (Recoverability)
+            const latestState = await downloadState.getValue();
             await downloadState.setValue({
-              ...currentState,
+              ...latestState,
               curriculum, // Save the updated array
-              completedLectures: currentState.completedLectures + 1,
+              completedLectures: latestState.completedLectures + 1,
               lastUpdated: Date.now()
             });
 
           } catch (err) {
             console.error(err);
-            // Log error but don't stop strictly? Or mark as error? 
-            // We'll mark completed as false to retry later, but log it.
-             await downloadState.setValue({
-              ...currentState,
-              logs: [`Error on ${item.title}: ${err}`]
+            // Log error but don't stop - append to logs for visibility
+            const latestState = await downloadState.getValue();
+            await downloadState.setValue({
+              ...latestState,
+              logs: [...latestState.logs, `Error on ${item.title}: ${err}`]
             });
           }
         }
@@ -165,7 +171,6 @@ export default defineContentScript({
         // --- Finalization ---
         await downloadState.setValue({ 
           ...(await downloadState.getValue()), 
-          status: 'completed', 
           currentTask: 'Zipping files...' 
         });
         
@@ -216,43 +221,42 @@ export default defineContentScript({
       // Add merged file
       zipData[`${cleanTitle}_Full.md`] = stringToBuffer(mergedContent);
 
-      // Zipping
-      zip(zipData, { level: 6 }, (err, data) => {
-        if (err) {
-          downloadState.setValue({ ...state, status: 'error', logs: ['Zip Error'] });
-          return;
-        }
+      // Zipping with Promise wrapper for proper async flow
+      return new Promise<void>((resolve, reject) => {
+        zip(zipData, { level: 6 }, async (err, data) => {
+          if (err) {
+            await downloadState.setValue({ ...state, status: 'error', logs: [...state.logs, 'Zip Error'] });
+            reject(err);
+            return;
+          }
 
-        // Trigger Download
-        const blob = new Blob([new Uint8Array(data)], { type: 'application/zip' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${cleanTitle}_Transcripts.zip`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+          // Trigger Download
+          const blob = new Blob([new Uint8Array(data)], { type: 'application/zip' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${cleanTitle}_Transcripts.zip`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
 
-        downloadState.setValue({ ...state, status: 'idle', currentTask: 'Download Finished' });
+          await downloadState.setValue({ ...state, status: 'completed', currentTask: 'Download Finished' });
+          resolve();
+        });
       });
     };
 
     // --- Message Listeners ---
-    browser.runtime.onMessage.addListener((message: MessagePayload) => {
-      if (message.action === 'START') processDownload(false);
-      if (message.action === 'RESUME') processDownload(true);
-      if (message.action === 'PAUSE') downloadState.setValue({ ...downloadState.defaultValue, status: 'paused' }); // Note: We need a partial update here really, handled below
-    });
-    
-    // Fix for the Pause logic in listener above:
-    // We can't access "current" state easily in a sync listener without async, 
-    // so we assume the main loop checks the 'paused' string written to storage.
     browser.runtime.onMessage.addListener(async (message: MessagePayload) => {
-       if (message.action === 'PAUSE') {
-         const s = await downloadState.getValue();
-         await downloadState.setValue({ ...s, status: 'paused' });
-       }
+      if (message.action === 'START') {
+        processDownload(false);
+      } else if (message.action === 'RESUME') {
+        processDownload(true);
+      } else if (message.action === 'PAUSE') {
+        const s = await downloadState.getValue();
+        await downloadState.setValue({ ...s, status: 'paused' });
+      }
     });
   },
 });
