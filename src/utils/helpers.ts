@@ -16,7 +16,8 @@ export const vttToMarkdown = (vttRaw: string): string => {
   
   const lines = vttRaw.split('\n');
   let cleanText = '';
-  const timestampRegex = /^\d{2}:\d{2}/;
+  const timestampRegex = /^\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?/;
+  const cueIdRegex = /^[\w-]+$/; // Matches cue identifiers
 
   lines.forEach((line) => {
     const trimmed = line.trim();
@@ -24,6 +25,7 @@ export const vttToMarkdown = (vttRaw: string): string => {
     if (timestampRegex.test(trimmed)) return;
     if (trimmed === '') return;
     if (trimmed.includes('-->')) return;
+    if (cueIdRegex.test(trimmed) && /^\d+$/.test(trimmed)) return; // Skip numeric cue IDs
     
     cleanText += `${trimmed} `;
   });
