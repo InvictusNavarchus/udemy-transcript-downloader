@@ -25,7 +25,7 @@ export const vttToMarkdown = (vttRaw: string): string => {
     if (timestampRegex.test(trimmed)) return;
     if (trimmed === '') return;
     if (trimmed.includes('-->')) return;
-    if (cueIdRegex.test(trimmed) && /^\d+$/.test(trimmed)) return; // Skip numeric cue IDs
+    if (/^\d+$/.test(trimmed)) return; // Skip numeric cue IDs
     
     cleanText += `${trimmed} `;
   });
