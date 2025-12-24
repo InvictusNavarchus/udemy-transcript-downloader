@@ -17,5 +17,8 @@
   "devDependencies": {
     "typescript": "^5.9.3",
     "wxt": "^0.20.6"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
   }
 }
