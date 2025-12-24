@@ -3,7 +3,7 @@ import { randomDelay, vttToMarkdown } from './helpers';
 
 /**
  * Extracts the Udemy course ID from the current page's DOM.
- * @throws {Error} If course element or ID cannot be found
+ * @throws {Error} If course element, args, or courseId cannot be found/validated
  */
 export const getCourseId = (): number => {
   try {
@@ -11,7 +11,18 @@ export const getCourseId = (): number => {
     if (!el) throw new Error('Course element not found');
     const args = el.getAttribute('data-module-args');
     if (!args) throw new Error('Course args not found');
-    return JSON.parse(args).courseId;
+    
+    const parsed = JSON.parse(args);
+    
+    // Validate courseId exists and is a number
+    if (parsed.courseId === null || parsed.courseId === undefined) {
+      throw new Error('Course ID not found in module args');
+    }
+    if (typeof parsed.courseId !== 'number') {
+      throw new Error(`Course ID must be a number, got ${typeof parsed.courseId}`);
+    }
+    
+    return parsed.courseId;
   } catch (e) {
     throw new Error('Could not find Course ID. Ensure you are on the Course Learning Page.');
   }
