@@ -20,7 +20,7 @@ A browser extension that enables you to download complete course transcripts fro
 
 ## 📋 How It Works
 
-1. Navigate to any Udemy course lecture page (requires enrolled access)
+1. Navigate to any Udemy course lecture page (requires you to be enrolled)
 2. Click the extension icon in your toolbar to open the popup interface
 3. Click **"Start Download"** to begin fetching transcripts
 4. The extension:
