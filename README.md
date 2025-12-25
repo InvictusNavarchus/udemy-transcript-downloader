@@ -1,6 +1,6 @@
 # Udemy Transcript Downloader
 
-[![Version](https://img.shields.io/badge/version-0.0.0-orange)](https://github.com/InvictusNavarchus/udemy-transcript-downloader)
+[![Version](https://img.shields.io/badge/version-0.1.0-orange)](https://github.com/InvictusNavarchus/udemy-transcript-downloader)
 [![License](https://img.shields.io/badge/license-MPL--2.0-green)](https://mozilla.org/MPL/2.0/)
 [![Built with WXT](https://img.shields.io/badge/built%20with-WXT-7c3aed)](https://wxt.dev/)
 
