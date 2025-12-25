@@ -272,7 +272,7 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please follow these guidelines:
+Contributions are welcome! Feel free to:
 
 1. Create a feature branch (`git checkout -b feature/amazing-feature`)
 2. Make your changes and ensure type safety
