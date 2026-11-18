@@ -18,7 +18,7 @@ export default defineContentScript({
         // --- Initialization Phase ---
         if (!resume || state.status === 'completed' || state.status === 'error') {
           const courseId = getCourseId();
-          const courseTitle = document.title.split('|')[0].trim();
+          const courseTitle = (document.title.split('|')[0] ?? '').trim();
 
           await downloadState.setValue({
             ...state,
@@ -60,15 +60,13 @@ export default defineContentScript({
         
         const curriculum = [...state.curriculum];
 
-        for (let i = 0; i < curriculum.length; i++) {
+        for (const item of curriculum) {
           // 1. Check Pause State
           const currentState = await downloadState.getValue();
           if (currentState.status === 'paused') {
             await downloadState.setValue({ ...currentState, currentTask: 'Paused by user.' });
             return;
           }
-
-          const item = curriculum[i];
 
           // Skip if not a lecture or if already done
           if (item.type !== 'lecture' || !item.asset || item.isCompleted) {
@@ -85,11 +83,11 @@ export default defineContentScript({
             const transcript = await fetchTranscript(state.courseId, item.id);
             
             // Update item in local array
-            curriculum[i].isCompleted = true;
+            item.isCompleted = true;
             if (transcript) {
-              curriculum[i].markdownContent = transcript;
+              item.markdownContent = transcript;
             } else {
-              curriculum[i].markdownContent = '> [No Transcript Available]';
+              item.markdownContent = '> [No Transcript Available]';
             }
 
             // 3. Save State (Recoverability)

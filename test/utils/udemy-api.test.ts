@@ -76,7 +76,7 @@ describe('fetchCurriculum', () => {
 
   it('maps unknown _class values to "other"', async () => {
     stubFetch({ [curriculumUrl(COURSE_ID)]: () => json({ results: [{ _class: 'practice', id: 1, title: 'x' }] }) });
-    expect((await fetchCurriculum(COURSE_ID))[0].type).toBe('other');
+    expect((await fetchCurriculum(COURSE_ID))[0]?.type).toBe('other');
   });
 
   it('throws on a non-OK response', async () => {
@@ -124,7 +124,7 @@ describe('fetchTranscript', () => {
     const { lecture, fetchMock } = setup('course-b');
     expect(lecture.asset.captions).toHaveLength(10);
     await fetchTranscript(COURSE_ID, lecture.id);
-    expect(String(fetchMock.mock.calls[1][0])).toContain('/en_US/');
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/en_US/');
   });
 
   it('returns null when the lecture request fails', async () => {
