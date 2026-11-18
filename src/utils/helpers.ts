@@ -6,10 +6,17 @@ export const randomDelay = async () => {
   await new Promise((resolve) => setTimeout(resolve, delay));
 };
 
+const MAX_NAME_CHARS = 100;
+// File systems limit one name to 255 bytes (ext4, APFS) and ZIP tools follow suit. Leave room
+// for what generateZip adds around a title: "01_" + ".md", or "_Transcripts.zip" (16 bytes).
+const MAX_NAME_BYTES = 200;
+const utf8 = new TextEncoder();
+
 /**
  * Makes a title safe to use as a file or folder name: keeps letters and digits of any script,
  * whitespace, hyphens and underscores, and drops all other punctuation and symbols.
- * Truncated to 100 characters (code points, so a character outside the BMP is never split).
+ * Truncated to 100 characters and 200 UTF-8 bytes, whichever is reached first, cutting only
+ * between code points.
  */
 export const sanitizeFileName = (name: string): string => {
   const cleaned = name
@@ -17,9 +24,20 @@ export const sanitizeFileName = (name: string): string => {
     .replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, '')
     .replace(/\s+/g, ' ') // close gaps left by removed characters; no tabs/newlines in names
     .trim();
+
+  let truncated = '';
+  let chars = 0;
+  let bytes = 0;
+  for (const char of cleaned) {
+    const size = utf8.encode(char).length;
+    if (chars === MAX_NAME_CHARS || bytes + size > MAX_NAME_BYTES) break;
+    truncated += char;
+    chars++;
+    bytes += size;
+  }
+
   // Trim again: truncating can leave a trailing space, which Windows rejects in names.
-  const sanitized = Array.from(cleaned).slice(0, 100).join('').trim();
-  return sanitized || 'untitled';
+  return truncated.trim() || 'untitled';
 };
 
 const VTT_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', lrm: '', rlm: '' };

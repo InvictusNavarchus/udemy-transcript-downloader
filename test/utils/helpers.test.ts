@@ -131,10 +131,15 @@ describe('sanitizeFileName', () => {
     expect(sanitizeFileName('Tabs\tand\nnewlines')).toBe('Tabs and newlines');
   });
 
-  it('truncates by character without splitting a surrogate pair', () => {
-    const result = sanitizeFileName('𠀀'.repeat(150));
-    expect(Array.from(result)).toHaveLength(100);
-    expect(result).toBe('𠀀'.repeat(100));
+  it('caps names at 200 UTF-8 bytes so prefixed file names stay under 255 bytes', () => {
+    const cjk = sanitizeFileName('語'.repeat(100)); // 3 bytes each
+    expect(new TextEncoder().encode(cjk).length).toBe(198);
+    expect(cjk).toBe('語'.repeat(66));
+    expect(new TextEncoder().encode(`01_${cjk}.md`).length).toBeLessThanOrEqual(255);
+  });
+
+  it('applies the byte cap without splitting a 4-byte character', () => {
+    expect(sanitizeFileName('𠀀'.repeat(60))).toBe('𠀀'.repeat(50));
   });
 
   it('does not leave a trailing space after truncating', () => {
