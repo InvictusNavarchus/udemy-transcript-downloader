@@ -1,5 +1,5 @@
 import { zip } from 'fflate';
-import { UdemyCurriculumItem } from './types';
+import type { UdemyCurriculumItem } from './types';
 import { sanitizeFileName, stringToBuffer } from './helpers';
 
 /**

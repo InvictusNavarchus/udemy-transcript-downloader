@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser';
 import { downloadState } from '@/utils/storage';
-import { ProcessingState } from '@/utils/types';
+import type { ProcessingState } from '@/utils/types';
 
 // Helper for safe element retrieval
 function getElement<T extends HTMLElement>(id: string): T {

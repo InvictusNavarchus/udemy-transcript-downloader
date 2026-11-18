@@ -1,4 +1,4 @@
-import { UdemyCurriculumItem } from './types';
+import type { UdemyCurriculumItem } from './types';
 import { randomDelay, vttToMarkdown } from './helpers';
 
 /**
