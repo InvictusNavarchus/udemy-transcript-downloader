@@ -15,6 +15,7 @@ export const sanitizeFileName = (name: string): string => {
   const cleaned = name
     .replace(/[\p{Pd}\u2212]/gu, '-') // em/en dashes, minus sign, etc. read as a hyphen; keep one
     .replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, '')
+    .replace(/\s+/g, ' ') // close gaps left by removed characters; no tabs/newlines in names
     .trim();
   // Trim again: truncating can leave a trailing space, which Windows rejects in names.
   const sanitized = Array.from(cleaned).slice(0, 100).join('').trim();

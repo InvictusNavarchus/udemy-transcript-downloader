@@ -126,6 +126,11 @@ describe('sanitizeFileName', () => {
     expect(sanitizeFileName('C++/Python🚀 Basics')).toBe('CPython Basics');
   });
 
+  it('collapses whitespace, including gaps left by removed characters', () => {
+    expect(sanitizeFileName('Q & A / Wrap-up')).toBe('Q A Wrap-up');
+    expect(sanitizeFileName('Tabs\tand\nnewlines')).toBe('Tabs and newlines');
+  });
+
   it('truncates by character without splitting a surrogate pair', () => {
     const result = sanitizeFileName('𠀀'.repeat(150));
     expect(Array.from(result)).toHaveLength(100);
