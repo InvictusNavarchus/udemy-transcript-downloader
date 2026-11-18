@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser';
-import { downloadState } from '@/utils/storage';
-import type { ProcessingState } from '@/utils/types';
+import { courseState } from '@/utils/storage';
+import type { MessagePayload, PageInfo, ProcessingState } from '@/utils/types';
 
 // Helper for safe element retrieval
 function getElement<T extends HTMLElement>(id: string): T {
@@ -11,6 +11,8 @@ function getElement<T extends HTMLElement>(id: string): T {
 
 // Elements
 const els = {
+  notice: getElement<HTMLElement>('notice'),
+  course: getElement<HTMLElement>('course'),
   title: getElement<HTMLElement>('course-title'),
   badge: getElement<HTMLElement>('status-badge'),
   fill: getElement<HTMLElement>('fill'),
@@ -18,80 +20,96 @@ const els = {
   task: getElement<HTMLElement>('task'),
   start: getElement<HTMLButtonElement>('btn-start'),
   resume: getElement<HTMLButtonElement>('btn-resume'),
-  pause: getElement<HTMLButtonElement>('btn-pause')
+  pause: getElement<HTMLButtonElement>('btn-pause'),
 };
 
-// 1. Initial Render
-const initialState = await downloadState.getValue();
-render(initialState);
+const COURSE_TAB_PATTERN = 'https://www.udemy.com/course/*';
 
-// 2. Watch for changes (Reactive)
-downloadState.watch((newState) => {
-  render(newState);
-});
+/** The course open in the active tab, or why there is none. */
+type ActivePage =
+  | { kind: 'notice'; message: string }
+  | { kind: 'course'; tabId: number; courseId: number; courseTitle: string };
 
-// Render Function
-function render(state: ProcessingState) {
-  if (!state) return;
-
-  // Text
-  if (state.courseTitle) els.title.textContent = state.courseTitle;
-  els.task.textContent = state.currentTask;
-  els.badge.textContent = state.status.toUpperCase();
-  
-  // Progress
-  const percent = state.totalLectures > 0 
-    ? Math.round((state.completedLectures / state.totalLectures) * 100) 
-    : 0;
-  els.fill.style.width = `${percent}%`;
-  els.count.textContent = `${state.completedLectures} / ${state.totalLectures}`;
-
-  // Buttons visibility
-  els.start.classList.add('hidden');
-  els.resume.classList.add('hidden');
-  els.pause.classList.add('hidden');
-
-  if (state.status === 'running') {
-    els.pause.classList.remove('hidden');
-  } else if (state.status === 'paused') {
-    els.resume.classList.remove('hidden');
-  } else {
-    // idle, completed, error
-    els.start.textContent = state.status === 'completed' ? 'Download Again' : 'Start Download';
-    els.start.classList.remove('hidden');
-  }
-}
-
-// Button Actions
-async function send(action: 'START' | 'RESUME') {
+async function detectActivePage(): Promise<ActivePage> {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-  
-  // Verify we're on a Udemy course page
-  if (!tab?.url?.includes('udemy.com/course/')) {
-    els.task.textContent = 'Please open a Udemy course page first.';
-    return;
+  if (tab?.id === undefined || !tab.url?.startsWith('https://www.udemy.com/course/')) {
+    return { kind: 'notice', message: 'Open a Udemy course you are enrolled in to download its transcripts.' };
   }
-  
-  if (tab?.id) {
-    try {
-      await browser.tabs.sendMessage(tab.id, { action });
-    } catch (e) {
-      els.task.textContent = 'Error: Refresh the Udemy page first.';
-    }
+  let info: PageInfo;
+  try {
+    info = await browser.tabs.sendMessage(tab.id, { action: 'GET_PAGE' } satisfies MessagePayload);
+  } catch {
+    // No content script answered: the tab was open before the extension was installed or updated.
+    return { kind: 'notice', message: 'Reload this Udemy page, then open the extension again.' };
+  }
+  if (info.courseId === null) {
+    return {
+      kind: 'notice',
+      message: 'Open the course player (“Go to course”) to download transcripts. The course page itself has no lecture list to read.',
+    };
+  }
+  return { kind: 'course', tabId: tab.id, courseId: info.courseId, courseTitle: info.courseTitle };
+}
+
+function show(el: HTMLElement, visible: boolean) {
+  el.classList.toggle('hidden', !visible);
+}
+
+function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: ProcessingState | null) {
+  show(els.notice, false);
+  show(els.course, true);
+
+  els.title.textContent = state?.courseTitle || page.courseTitle;
+  els.badge.textContent = (state?.status ?? 'not started').toUpperCase();
+  show(els.badge, true);
+  els.task.textContent = state?.currentTask ?? '';
+
+  const total = state?.totalLectures ?? 0;
+  const done = state?.completedLectures ?? 0;
+  els.fill.style.width = `${total > 0 ? Math.round((done / total) * 100) : 0}%`;
+  els.count.textContent = `${done} / ${total}`;
+
+  show(els.start, false);
+  show(els.resume, false);
+  show(els.pause, false);
+  if (state?.status === 'running') {
+    show(els.pause, true);
+  } else if (state?.status === 'paused') {
+    show(els.resume, true);
   } else {
-    els.task.textContent = 'No active tab found.';
+    els.start.textContent = state?.status === 'completed' ? 'Download Again' : 'Start Download';
+    show(els.start, true);
   }
 }
 
-els.start.addEventListener('click', () => send('START'));
-els.resume.addEventListener('click', () => send('RESUME'));
 // The loop may be running in a tab other than the active one, and only that tab's content script
-// can pause it. Tabs without a running loop ignore the message.
-async function pauseEverywhere() {
-  const tabs = await browser.tabs.query({ url: 'https://www.udemy.com/course/*' });
+// can pause it. Tabs without a running loop for the course ignore the message.
+async function pauseEverywhere(courseId: number) {
+  const tabs = await browser.tabs.query({ url: COURSE_TAB_PATTERN });
   await Promise.allSettled(
-    tabs.filter((t) => t.id !== undefined).map((t) => browser.tabs.sendMessage(t.id!, { action: 'PAUSE' }))
+    tabs
+      .filter((t) => t.id !== undefined)
+      .map((t) => browser.tabs.sendMessage(t.id!, { action: 'PAUSE', courseId } satisfies MessagePayload))
   );
 }
 
-els.pause.addEventListener('click', () => pauseEverywhere());
+async function sendToTab(tabId: number, message: MessagePayload) {
+  try {
+    await browser.tabs.sendMessage(tabId, message);
+  } catch {
+    els.task.textContent = 'Error: Refresh the Udemy page first.';
+  }
+}
+
+const page = await detectActivePage();
+if (page.kind === 'notice') {
+  els.notice.textContent = page.message;
+} else {
+  const item = courseState(page.courseId);
+  renderCourse(page, await item.getValue());
+  item.watch((state) => renderCourse(page, state));
+
+  els.start.addEventListener('click', () => sendToTab(page.tabId, { action: 'START' }));
+  els.resume.addEventListener('click', () => sendToTab(page.tabId, { action: 'RESUME' }));
+  els.pause.addEventListener('click', () => pauseEverywhere(page.courseId));
+}

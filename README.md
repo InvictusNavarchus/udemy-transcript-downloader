@@ -20,8 +20,8 @@ A browser extension that enables you to download complete course transcripts fro
 
 ## 📋 How It Works
 
-1. Navigate to any Udemy course lecture page (requires you to be enrolled)
-2. Click the extension icon in your toolbar to open the popup interface
+1. Open the course player of a Udemy course you're enrolled in (any lecture page)
+2. Click the extension icon in your toolbar. The popup shows the course open in the active tab
 3. Click **"Start Download"** to begin fetching transcripts
 4. The extension:
    - Extracts the course structure from the page
@@ -124,6 +124,7 @@ The extension icon should now appear in your browser's toolbar.
 ```
 src/
 ├── entrypoints/
+│   ├── background.ts           # Migrates state saved by older versions
 │   ├── content.ts              # Main content script - orchestrates downloads
 │   └── popup/
 │       ├── index.html          # Popup UI
@@ -191,6 +192,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 - Orchestrates the entire download workflow
 - Implements pause/resume functionality through state management
 - Recoverable: saves state after each lecture for crash resilience
+- Keeps a separate state per course (`local:course:<id>`), so different courses can download in different tabs. Only the tab running a download writes its state; Pause is a message to that tab
 
 **Workflow**:
 1. Extract course ID and title from page DOM
@@ -200,7 +202,11 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 5. Generate ZIP file when complete
 6. Support pause/resume mid-process
 
+#### Background Script (`background.ts`)
+- On install or update, moves a download saved by older versions (one shared state) into its course's state
+
 #### Popup Script (`main.ts`)
+- Shows the course open in the active tab, or explains what to open (a non-Udemy tab, the course landing page, or a page that needs a reload)
 - Provides UI for user control (Start, Pause, Resume)
 - Displays real-time progress, current task, and status badge
 - Uses reactive storage watching for automatic UI updates

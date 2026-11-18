@@ -1,6 +1,6 @@
 import { defineContentScript } from '#imports';
-import { downloadState } from '@/utils/storage';
-import type { MessagePayload, ProcessingState } from '@/utils/types';
+import { courseState } from '@/utils/storage';
+import type { MessagePayload, PageInfo, ProcessingState } from '@/utils/types';
 import { getCourseId, fetchCurriculum, fetchTranscript, isVideoLecture, courseTitleFromDocumentTitle } from '@/utils/udemy-api';
 import { generateZip } from '@/utils/file-generator';
 
@@ -20,6 +20,8 @@ export default defineContentScript({
     // landed last won (a Pause could be overwritten back to 'running', or a Resume lost).
     let loopRunning = false;
     let pauseRequested = false;
+    // The course the running loop downloads; Pause names its course so it only stops that one.
+    let loopCourseId: number | null = null;
 
     const processDownload = async (mode: 'start' | 'resume') => {
       if (loopRunning) {
@@ -34,27 +36,50 @@ export default defineContentScript({
         await runDownload(mode);
       } finally {
         loopRunning = false;
+        loopCourseId = null;
       }
     };
 
     const runDownload = async (mode: 'start' | 'resume') => {
-      let state = await downloadState.getValue();
+      // The course is the one open in this tab. Udemy switches pages without reloading, so read
+      // it now rather than when the script was injected.
+      let courseId: number;
+      try {
+        courseId = getCourseId();
+      } catch (e) {
+        // No course to record the error against; the popup only offers Start on a player page.
+        console.error(e);
+        return;
+      }
+      loopCourseId = courseId;
+      const item = courseState(courseId);
+      const saved = await item.getValue();
+      const courseTitle = courseTitleFromDocumentTitle(document.title);
+
+      let state: ProcessingState = saved ?? {
+        status: 'running',
+        courseId,
+        courseTitle,
+        totalLectures: 0,
+        completedLectures: 0,
+        currentTask: '',
+        logs: [],
+        curriculum: [],
+        lastUpdated: 0,
+      };
       // The loop keeps the authoritative state in memory and writes it whole; nothing else
       // writes it while the loop runs, so there is no need to re-read before each save.
       const update = async (patch: Partial<ProcessingState>) => {
         state = { ...state, ...patch, lastUpdated: Date.now() };
-        await downloadState.setValue(state);
+        await item.setValue(state);
       };
 
       try {
         // --- Initialization Phase ---
-        if (mode === 'start' || state.status === 'completed' || state.status === 'error') {
-          const courseId = getCourseId();
-          const courseTitle = courseTitleFromDocumentTitle(document.title);
-
+        // Resume continues saved progress; anything else (or nothing to continue) starts over.
+        if (mode === 'start' || !saved || state.status === 'completed' || state.status === 'error') {
           await update({
             status: 'running',
-            courseId,
             courseTitle,
             totalLectures: 0,
             completedLectures: 0,
@@ -72,12 +97,6 @@ export default defineContentScript({
           });
         } else {
           await update({ status: 'running', currentTask: 'Resuming...' });
-        }
-
-        // Guard: Ensure courseId is available
-        const courseId = state.courseId;
-        if (!courseId) {
-          throw new Error('Course ID not available. Cannot proceed with download.');
         }
 
         const curriculum = [...state.curriculum];
@@ -141,15 +160,27 @@ export default defineContentScript({
     };
 
     // --- Message Listeners ---
-    browser.runtime.onMessage.addListener((message: MessagePayload) => {
-      if (message.action === 'START') {
+    const pageInfo = (): PageInfo => {
+      let courseId: number | null = null;
+      try {
+        courseId = getCourseId();
+      } catch {
+        // Not the course player (e.g. the landing page): the popup explains what to open.
+      }
+      return { courseId, courseTitle: courseTitleFromDocumentTitle(document.title), runningCourseId: loopCourseId };
+    };
+
+    browser.runtime.onMessage.addListener((message: MessagePayload, _sender, sendResponse) => {
+      if (message.action === 'GET_PAGE') {
+        sendResponse(pageInfo());
+      } else if (message.action === 'START') {
         processDownload('start');
       } else if (message.action === 'RESUME') {
         processDownload('resume');
       } else if (message.action === 'PAUSE') {
         // Only a running loop can pause; the popup sends Pause to every Udemy tab because the
         // loop may be in a tab other than the active one.
-        if (loopRunning) pauseRequested = true;
+        if (loopRunning && loopCourseId === message.courseId) pauseRequested = true;
       }
     });
   },

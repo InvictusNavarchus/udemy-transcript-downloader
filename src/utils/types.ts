@@ -22,9 +22,10 @@ export interface UdemyCaption {
   video_label?: string; // e.g. 'English', 'German [Auto]'
 }
 
+/** Download state of one course. A course that was never started has no state at all. */
 export interface ProcessingState {
-  status: 'idle' | 'running' | 'paused' | 'completed' | 'error';
-  courseId: number | null;
+  status: 'running' | 'paused' | 'completed' | 'error';
+  courseId: number;
   courseTitle: string;
   totalLectures: number;
   completedLectures: number;
@@ -34,6 +35,18 @@ export interface ProcessingState {
   lastUpdated: number;
 }
 
-export interface MessagePayload {
-  action: 'START' | 'PAUSE' | 'RESUME';
+/** Messages from the popup to a course tab's content script. */
+export type MessagePayload =
+  | { action: 'GET_PAGE' }
+  | { action: 'START' }
+  | { action: 'RESUME' }
+  | { action: 'PAUSE'; courseId: number };
+
+/** The content script's answer to GET_PAGE. */
+export interface PageInfo {
+  /** null when the page is not the course player, e.g. the course landing page. */
+  courseId: number | null;
+  courseTitle: string;
+  /** The course this tab is downloading right now, if any. */
+  runningCourseId: number | null;
 }

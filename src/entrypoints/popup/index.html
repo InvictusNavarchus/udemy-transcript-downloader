@@ -10,12 +10,14 @@
   <div class="app">
     <header>
       <h1>Udemy Downloader</h1>
-      <div id="status-badge" class="badge">Idle</div>
+      <div id="status-badge" class="badge hidden"></div>
     </header>
 
-    <div class="content">
-      <h2 id="course-title">...</h2>
-      
+    <p id="notice" class="notice">Loading…</p>
+
+    <section id="course" class="hidden">
+      <h2 id="course-title"></h2>
+
       <div class="progress-container">
         <div class="progress-bar">
           <div id="fill" class="fill" style="width: 0%"></div>
@@ -25,14 +27,14 @@
         </div>
       </div>
 
-      <p id="task" class="task-text">Waiting to start...</p>
-    </div>
+      <p id="task" class="task-text"></p>
 
-    <div class="actions">
-      <button id="btn-start" class="btn primary">Start Download</button>
-      <button id="btn-resume" class="btn secondary hidden">Resume</button>
-      <button id="btn-pause" class="btn warning hidden">Pause</button>
-    </div>
+      <div class="actions">
+        <button id="btn-start" class="btn primary">Start Download</button>
+        <button id="btn-resume" class="btn secondary hidden">Resume</button>
+        <button id="btn-pause" class="btn warning hidden">Pause</button>
+      </div>
+    </section>
   </div>
   <script type="module" src="main.ts"></script>
 </body>

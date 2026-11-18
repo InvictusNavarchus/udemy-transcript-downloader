@@ -88,3 +88,9 @@ h2 { font-size: 14px; margin: 0 0 8px 0; white-space: nowrap; overflow: hidden; 
 .warning:focus-visible { outline-color: #ffb300; }
 
 .hidden { display: none; }
+.notice {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #6a6f73;
+  margin: 8px 0;
+}
