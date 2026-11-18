@@ -1,6 +1,6 @@
 import { defineContentScript } from '#imports';
 import { downloadState } from '@/utils/storage';
-import { MessagePayload } from '@/utils/types';
+import type { MessagePayload } from '@/utils/types';
 import { getCourseId, fetchCurriculum, fetchTranscript } from '@/utils/udemy-api';
 import { generateZip } from '@/utils/file-generator';
 

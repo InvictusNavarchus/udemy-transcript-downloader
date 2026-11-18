@@ -1,5 +1,5 @@
 import { storage } from '#imports'; // Use #imports for cleaner WXT usage
-import { ProcessingState } from './types';
+import type { ProcessingState } from './types';
 
 export const downloadState = storage.defineItem<ProcessingState>(
   'local:udemy_dl_state',
