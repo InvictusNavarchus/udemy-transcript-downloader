@@ -106,26 +106,12 @@ export default defineContentScript({
             currentTask: `Processing: ${item.title}` 
           });
 
+          // Only the fetch is guarded here. A failed progress save is a storage problem (e.g. the
+          // quota), not a transcript problem: it propagates and stops the run with an error
+          // instead of replacing an already-fetched transcript with a failure placeholder.
+          let transcript: string | null;
           try {
-            const transcript = await fetchTranscript(state.courseId, item.id);
-            
-            // Update item in local array
-            item.isCompleted = true;
-            if (transcript) {
-              item.markdownContent = transcript;
-            } else {
-              item.markdownContent = '> [No Transcript Available]';
-            }
-
-            // 3. Save State (Recoverability)
-            const latestState = await downloadState.getValue();
-            await downloadState.setValue({
-              ...latestState,
-              curriculum, // Save the updated array
-              completedLectures: latestState.completedLectures + 1,
-              lastUpdated: Date.now()
-            });
-
+            transcript = await fetchTranscript(state.courseId, item.id);
           } catch (err) {
             console.error(err);
             // Leave the lecture incomplete so Resume (after a pause) retries it, and mark the gap
@@ -137,7 +123,21 @@ export default defineContentScript({
               ...latestState,
               logs: [...latestState.logs, `Error on ${item.title}: ${err}`]
             });
+            continue;
           }
+
+          // Update item in local array
+          item.isCompleted = true;
+          item.markdownContent = transcript || '> [No Transcript Available]';
+
+          // 3. Save State (Recoverability)
+          const latestState = await downloadState.getValue();
+          await downloadState.setValue({
+            ...latestState,
+            curriculum, // Save the updated array
+            completedLectures: latestState.completedLectures + 1,
+            lastUpdated: Date.now()
+          });
         }
 
         // --- Finalization ---
