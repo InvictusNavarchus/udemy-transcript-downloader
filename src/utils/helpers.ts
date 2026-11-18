@@ -45,7 +45,11 @@ const VTT_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot:
 /** Decodes the character references WebVTT cue text can contain (named ones it defines, plus numeric). */
 const decodeVttEntities = (text: string): string =>
   text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, ref: string) => {
-    if (ref[0] !== '#') return VTT_ENTITIES[ref.toLowerCase()] ?? match;
+    if (ref[0] !== '#') {
+      const name = ref.toLowerCase();
+      // Own keys only: a plain object also "has" constructor, toString, etc.
+      return Object.hasOwn(VTT_ENTITIES, name) ? VTT_ENTITIES[name]! : match;
+    }
     const code = ref[1] === 'x' || ref[1] === 'X' ? parseInt(ref.slice(2), 16) : parseInt(ref.slice(1), 10);
     return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
   });

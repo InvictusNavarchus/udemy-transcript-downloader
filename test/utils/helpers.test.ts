@@ -54,6 +54,10 @@ describe('vttToMarkdown', () => {
     ).toBe('R&D uses \\<b> tags \u2014 \u2014 caf&eacute;');
   });
 
+  it('leaves names of inherited object properties alone', () => {
+    expect(vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\n&constructor; &toString;\n')).toBe('&constructor; &toString;');
+  });
+
   it('escapes "<" so decoded tag-like caption text stays visible in Markdown', () => {
     expect(vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\nWrap it in a &lt;div&gt; element\n')).toBe(
       'Wrap it in a \\<div> element'
