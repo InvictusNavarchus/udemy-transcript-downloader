@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { courseState } from '@/utils/storage';
+import { isActiveStatus, isInterrupted } from '@/utils/status';
 import type { MessagePayload, PageInfo, ProcessingState } from '@/utils/types';
 
 // Helper for safe element retrieval
@@ -21,6 +22,8 @@ const els = {
   start: getElement<HTMLButtonElement>('btn-start'),
   resume: getElement<HTMLButtonElement>('btn-resume'),
   pause: getElement<HTMLButtonElement>('btn-pause'),
+  elsewhere: getElement<HTMLElement>('elsewhere'),
+  switchTab: getElement<HTMLButtonElement>('btn-switch'),
 };
 
 const COURSE_TAB_PATTERN = 'https://www.udemy.com/course/*';
@@ -55,14 +58,33 @@ function show(el: HTMLElement, visible: boolean) {
   el.classList.toggle('hidden', !visible);
 }
 
-function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: ProcessingState | null) {
+/** The open tab whose content script is downloading the course, if any. */
+async function findLoopTab(courseId: number) {
+  const tabs = await browser.tabs.query({ url: COURSE_TAB_PATTERN });
+  const answers = await Promise.allSettled(
+    tabs.map(async (tab) => {
+      const info: PageInfo = await browser.tabs.sendMessage(tab.id!, { action: 'GET_PAGE' } satisfies MessagePayload);
+      return info.runningCourseId === courseId ? tab : null;
+    })
+  );
+  for (const a of answers) if (a.status === 'fulfilled' && a.value) return a.value;
+  return null;
+}
+
+type LoopTab = Awaited<ReturnType<typeof findLoopTab>>;
+
+function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: ProcessingState | null, loopTab: LoopTab) {
   show(els.notice, false);
   show(els.course, true);
 
+  const interrupted = isInterrupted(state, loopTab !== null);
   els.title.textContent = state?.courseTitle || page.courseTitle;
-  els.badge.textContent = (state?.status ?? 'not started').toUpperCase();
+  els.badge.textContent = interrupted ? 'INTERRUPTED' : (state?.status ?? 'not started').toUpperCase();
   show(els.badge, true);
-  els.task.textContent = state?.currentTask ?? '';
+  els.task.textContent = interrupted
+    ? 'The download stopped when its tab was closed or reloaded. Resume continues where it left off.'
+    : (state?.currentTask ?? '');
+  show(els.elsewhere, !interrupted && loopTab !== null && loopTab.id !== page.tabId);
 
   const total = state?.totalLectures ?? 0;
   const done = state?.completedLectures ?? 0;
@@ -72,7 +94,9 @@ function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: Proc
   show(els.start, false);
   show(els.resume, false);
   show(els.pause, false);
-  if (state?.status === 'running') {
+  if (interrupted) {
+    show(els.resume, true);
+  } else if (state?.status === 'running') {
     show(els.pause, true);
   } else if (state?.status === 'paused' || state?.status === 'pausing') {
     // While pausing, Resume cancels the pause and the loop carries on.
@@ -107,8 +131,25 @@ if (page.kind === 'notice') {
   els.notice.textContent = page.message;
 } else {
   const item = courseState(page.courseId);
-  renderCourse(page, await item.getValue());
-  item.watch((state) => renderCourse(page, state));
+  let state = await item.getValue();
+  // Asking every course tab is only needed when the status says a loop should exist, and a loop
+  // starts or stops only together with a status change.
+  const lookUpLoop = async (s: ProcessingState | null) => (s && isActiveStatus(s.status) ? findLoopTab(page.courseId) : null);
+  let loopTab = await lookUpLoop(state);
+  renderCourse(page, state, loopTab);
+  item.watch(async (next) => {
+    const statusChanged = next?.status !== state?.status;
+    // Set before awaiting, so a quicker later update is not overwritten by this older one.
+    state = next;
+    if (statusChanged) loopTab = await lookUpLoop(next);
+    renderCourse(page, state, loopTab);
+  });
+
+  els.switchTab.addEventListener('click', async () => {
+    if (loopTab?.id === undefined) return;
+    await browser.tabs.update(loopTab.id, { active: true });
+    await browser.windows.update(loopTab.windowId, { focused: true });
+  });
 
   els.start.addEventListener('click', () => sendToTab(page.tabId, { action: 'START' }));
   els.resume.addEventListener('click', () => sendToTab(page.tabId, { action: 'RESUME' }));

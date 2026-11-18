@@ -208,6 +208,8 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 #### Popup Script (`main.ts`)
 - Shows the course open in the active tab, or explains what to open (a non-Udemy tab, the course landing page, or a page that needs a reload)
 - Provides UI for user control (Start, Pause, Resume)
+- If the course is downloading in another tab, says so and offers to switch to it
+- If a download's tab was closed or reloaded mid-download, shows it as Interrupted with Resume, instead of Running forever
 - Displays real-time progress, current task, and status badge
 - Uses reactive storage watching for automatic UI updates
 - Sends messages to content script to trigger actions
@@ -257,7 +259,7 @@ No data is sent to external servers except Udemy's official API.
 
 Downloads are fully recoverable via persistent storage:
 
-If the extension crashes or browser closes mid-download, users can click **Resume** to continue from the last completed lecture.
+If the tab is closed or reloaded, or the browser closes mid-download, the popup shows the course as **Interrupted**. Open the course again and click **Resume** to continue from the last completed lecture.
 
 ## 📝 File Output Format
 

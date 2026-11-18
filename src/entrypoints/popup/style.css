@@ -94,3 +94,18 @@ h2 { font-size: 14px; margin: 0 0 8px 0; white-space: nowrap; overflow: hidden; 
   color: #6a6f73;
   margin: 8px 0;
 }
+
+.hint {
+  font-size: 12px;
+  margin: -8px 0 16px;
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
