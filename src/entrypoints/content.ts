@@ -19,21 +19,33 @@ export default defineContentScript({
     // arrives before then must not start a second loop, which would process lectures twice and
     // double-count progress.
     let loopRunning = false;
+    // Set when a Resume arrives while a loop is alive. If that loop had already committed to
+    // stopping (it was past its status check, writing "Paused by user."), it exits without seeing
+    // the Resume, so the exit path restarts it.
+    let resumeRequested = false;
 
     const processDownload = async (resume = false) => {
       if (loopRunning) {
         if (resume) {
-          // The live loop sees 'running' again at its next check and simply carries on.
+          resumeRequested = true;
+          // A loop that has not reached its next status check sees 'running' and carries on.
           const s = await downloadState.getValue();
           await downloadState.setValue({ ...s, status: 'running', currentTask: 'Resuming...' });
         }
         return;
       }
       loopRunning = true;
+      resumeRequested = false;
       try {
         await runDownload(resume);
       } finally {
         loopRunning = false;
+      }
+      // Status 'running' after the loop exited means a Resume landed after its pause check.
+      // Completion, errors and a pause that won the race leave another status, so this does not
+      // restart those.
+      if (resumeRequested && (await downloadState.getValue()).status === 'running') {
+        void processDownload(true);
       }
     };
 
