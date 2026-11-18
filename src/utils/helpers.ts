@@ -6,12 +6,18 @@ export const randomDelay = async () => {
   await new Promise((resolve) => setTimeout(resolve, delay));
 };
 
+/**
+ * Makes a title safe to use as a file or folder name: keeps letters and digits of any script,
+ * whitespace, hyphens and underscores, and drops all other punctuation and symbols.
+ * Truncated to 100 characters (code points, so a character outside the BMP is never split).
+ */
 export const sanitizeFileName = (name: string): string => {
-  const sanitized = name
+  const cleaned = name
     .replace(/[\p{Pd}\u2212]/gu, '-') // em/en dashes, minus sign, etc. read as a hyphen; keep one
-    .replace(/[^a-z0-9\s-_]/gi, '')
-    .trim()
-    .substring(0, 100);
+    .replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, '')
+    .trim();
+  // Trim again: truncating can leave a trailing space, which Windows rejects in names.
+  const sanitized = Array.from(cleaned).slice(0, 100).join('').trim();
   return sanitized || 'untitled';
 };
 

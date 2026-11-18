@@ -110,12 +110,29 @@ describe('sanitizeFileName', () => {
     expect(sanitizeFileName(input)).toBe(expected);
   });
 
-  // Known bug: every non-ASCII letter is stripped, so non-English titles lose their names.
-  it.fails('keeps accented letters', () => {
+  it('keeps accented letters', () => {
     expect(sanitizeFileName('Café Français')).toBe('Café Français');
   });
 
-  it.fails('keeps non-Latin titles', () => {
+  it('keeps non-Latin titles', () => {
     expect(sanitizeFileName('日本語コース')).toBe('日本語コース');
+  });
+
+  it('keeps combining marks (decomposed accents, Devanagari vowel signs)', () => {
+    expect(sanitizeFileName('Cafe\u0301 हिन्दी')).toBe('Cafe\u0301 हिन्दी');
+  });
+
+  it('still removes symbols and emoji', () => {
+    expect(sanitizeFileName('C++/Python🚀 Basics')).toBe('CPython Basics');
+  });
+
+  it('truncates by character without splitting a surrogate pair', () => {
+    const result = sanitizeFileName('𠀀'.repeat(150));
+    expect(Array.from(result)).toHaveLength(100);
+    expect(result).toBe('𠀀'.repeat(100));
+  });
+
+  it('does not leave a trailing space after truncating', () => {
+    expect(sanitizeFileName(`${'a'.repeat(99)} b`)).toBe('a'.repeat(99));
   });
 });
