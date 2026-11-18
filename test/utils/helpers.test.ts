@@ -52,8 +52,7 @@ describe('sanitizeFileName', () => {
     ['Activity: Create a test video', 'Activity Create a test video'],
     ['Welcome to the course!', 'Welcome to the course'],
     ['Let’s look back', 'Lets look back'],
-    ['Typing Marathon — keeping going', 'Typing Marathon  keeping going'],
-    ['keeps-dashes_and_underscores', 'keeps-dashes_and_underscores'],
+    ['keeps-hyphens_and_underscores', 'keeps-hyphens_and_underscores'],
   ])('%j -> %j', (input, expected) => {
     expect(sanitizeFileName(input)).toBe(expected);
   });
@@ -65,6 +64,16 @@ describe('sanitizeFileName', () => {
 
   it('truncates to 100 characters', () => {
     expect(sanitizeFileName('a'.repeat(150))).toHaveLength(100);
+  });
+
+  // Known bug: dash-like characters are deleted instead of becoming a hyphen,
+  // e.g. "Typing Marathon — keeping going" -> "Typing Marathon  keeping going".
+  it.fails.each([
+    ['em dash', 'Typing Marathon — keeping going', 'Typing Marathon - keeping going'],
+    ['en dash', 'Pages 1–10', 'Pages 1-10'],
+    ['minus sign', 'Score −5', 'Score -5'],
+  ])('converts %s to a hyphen', (_, input, expected) => {
+    expect(sanitizeFileName(input)).toBe(expected);
   });
 
   // Known bug: every non-ASCII letter is stripped, so non-English titles lose their names.

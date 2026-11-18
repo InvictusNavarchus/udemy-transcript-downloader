@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { strFromU8, unzipSync } from 'fflate';
 import { generateZip } from '@/utils/file-generator';
+import { sanitizeFileName } from '@/utils/helpers';
 import type { UdemyCurriculumItem } from '@/utils/types';
 import { fixtureJson } from '../helpers';
 
@@ -47,7 +48,8 @@ describe('generateZip', () => {
     expect(Object.keys(files).sort()).toEqual([
       '01_Introduction/01_Welcome to the course.md',
       '01_Introduction/02_Introduction to Touch Typing.md',
-      '02_Practice/01_Typing Marathon  keeping going.md',
+      // Title sanitization is covered in helpers.test.ts; this test only checks the layout.
+      `02_Practice/01_${sanitizeFileName('Typing Marathon — keeping going')}.md`,
       '03_Summary and next steps/01_Lets look back.md',
       'Touch Typing Course_Full.md',
     ]);
