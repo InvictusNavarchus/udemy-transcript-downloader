@@ -50,8 +50,8 @@ describe('vttToMarkdown', () => {
 
   it('decodes character references after stripping tags', () => {
     expect(
-      vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\nR&amp;D uses &lt;b&gt; tags &#8212; &#x2014; caf&eacute;\n')
-    ).toBe('R&D uses \\<b> tags \u2014 \u2014 caf&eacute;');
+      vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\nR&amp;D uses &lt;b&gt; tags &#8212; &#x2014; &quot;ok&quot;\n')
+    ).toBe('R&D uses \\<b> tags \u2014 \u2014 "ok"');
   });
 
   it('leaves names of inherited object properties alone', () => {

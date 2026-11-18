@@ -42,7 +42,12 @@ export const sanitizeFileName = (name: string): string => {
 
 const VTT_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', lrm: '', rlm: '' };
 
-/** Decodes the character references WebVTT cue text can contain (named ones it defines, plus numeric). */
+/**
+ * Decodes numeric character references and the named ones above.
+ * Known limitation: WebVTT allows every HTML named reference (2,000+), but other names such as
+ * "&eacute;" are left encoded. Udemy's captions are UTF-8 and have not been seen using them;
+ * supporting them would mean bundling HTML's full name table.
+ */
 const decodeVttEntities = (text: string): string =>
   text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, ref: string) => {
     if (ref[0] !== '#') {
