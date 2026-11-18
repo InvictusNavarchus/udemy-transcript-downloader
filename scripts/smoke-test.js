@@ -32,7 +32,7 @@
     fixtures.curriculum = cur;
     const items = cur.results ?? [];
     ok('curriculum.results is array', Array.isArray(cur.results), `${items.length} items (count=${cur.count})`);
-    log('pagination (next)', cur.next ? 'WARN' : 'PASS', cur.next ?? 'none');
+    log('pagination (next)', cur.next ? 'INFO' : 'PASS', cur.next ? `more pages follow (only the first is checked): ${cur.next}` : 'none');
     const classes = [...new Set(items.map((i) => i._class))];
     ok('_class values known', classes.every((c) => ['chapter', 'lecture', 'quiz'].includes(c)), classes.join(', '));
     const assetTypes = [...new Set(items.filter((i) => i._class === 'lecture').map((i) => i.asset?.asset_type))];

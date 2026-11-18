@@ -34,16 +34,20 @@ export const getCourseId = (): number => {
  * @returns Array of curriculum items (chapters, lectures, quizzes)
  */
 export const fetchCurriculum = async (courseId: number): Promise<UdemyCurriculumItem[]> => {
-  // Fetching up to 1000 items to be safe
-  const url = `https://www.udemy.com/api-2.0/courses/${courseId}/subscriber-curriculum-items/?curriculum_types=chapter%2Clecture%2Cquiz&page_size=1000&fields%5Blecture%5D=title%2Casset&fields%5Bchapter%5D=title`;
-  
-  await randomDelay();
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Curriculum API Error: ${response.status}`);
-  const data = await response.json();
-  
+  // Pages hold up to 1000 items; longer courses continue at the absolute URL in `next`.
+  let url: string | null = `https://www.udemy.com/api-2.0/courses/${courseId}/subscriber-curriculum-items/?curriculum_types=chapter%2Clecture%2Cquiz&page_size=1000&fields%5Blecture%5D=title%2Casset&fields%5Bchapter%5D=title`;
+  const rawResults: any[] = [];
+
+  while (url) {
+    await randomDelay();
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Curriculum API Error: ${response.status}`);
+    const data: { results?: any[]; next?: string | null } = await response.json();
+    rawResults.push(...(data.results || []));
+    url = data.next || null;
+  }
+
   // Map to internal structure
-  const rawResults = data.results || [];
   return rawResults.map((item: any) => ({
     _class: item._class,
     id: item.id,

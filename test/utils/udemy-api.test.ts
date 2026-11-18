@@ -85,15 +85,23 @@ describe('fetchCurriculum', () => {
     await expect(fetchCurriculum(COURSE_ID)).rejects.toThrow('Curriculum API Error: 403');
   });
 
-  // Known bug: `next` is never followed, so courses with more than 1000 items are silently cut off.
-  it.fails('follows pagination via `next`', async () => {
+  it('follows pagination via `next`', async () => {
     const page2Url = 'https://www.udemy.com/api-2.0/courses/4242/subscriber-curriculum-items/?page=2';
     stubFetch({
       [curriculumUrl(COURSE_ID)]: () =>
         json({ count: 2, next: page2Url, results: [{ _class: 'chapter', id: 1, title: 'Page 1' }] }),
       [page2Url]: () => json({ count: 2, next: null, results: [{ _class: 'chapter', id: 2, title: 'Page 2' }] }),
     });
-    expect(await fetchCurriculum(COURSE_ID)).toHaveLength(2);
+    expect((await fetchCurriculum(COURSE_ID)).map((i) => i.title)).toEqual(['Page 1', 'Page 2']);
+  });
+
+  it('throws when a later page fails', async () => {
+    const page2Url = 'https://www.udemy.com/api-2.0/courses/4242/subscriber-curriculum-items/?page=2';
+    stubFetch({
+      [curriculumUrl(COURSE_ID)]: () => json({ next: page2Url, results: [{ _class: 'chapter', id: 1, title: 'Page 1' }] }),
+      [page2Url]: () => text('busy', 503),
+    });
+    await expect(fetchCurriculum(COURSE_ID)).rejects.toThrow('Curriculum API Error: 503');
   });
 });
 
