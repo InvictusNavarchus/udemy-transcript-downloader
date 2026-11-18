@@ -91,7 +91,7 @@ The extension icon should now appear in your browser's toolbar.
 ### Prerequisites
 
 - [Bun](https://bun.sh/) - JavaScript runtime and package manager
-- Node.js 22+ (if not using Bun)
+- Node.js `^22.12`, `^24`, or `>=26`. Required even with Bun: `bun run` starts the WXT and Vitest CLIs with Node. Vitest 5 sets this range and doesn't support Node 23 or 25
 - Git
 
 ### Setup
