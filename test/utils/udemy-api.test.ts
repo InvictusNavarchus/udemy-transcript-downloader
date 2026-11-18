@@ -265,6 +265,7 @@ describe('courseTitleFromDocumentTitle', () => {
     ['Course: Python: The Complete Guide | Udemy', 'Python: The Complete Guide'],
     ['Touch Typing Mastery | Udemy', 'Touch Typing Mastery'],
     ['Coursework Basics | Udemy', 'Coursework Basics'],
+    ['Course: Data Science | Machine Learning | Udemy', 'Data Science | Machine Learning'],
     ['', ''],
   ])('%j -> %j', (input, expected) => {
     expect(courseTitleFromDocumentTitle(input)).toBe(expected);
