@@ -1,4 +1,4 @@
-import type { ProcessingState } from './types';
+import type { ProcessingState, UdemyCurriculumItem } from './types';
 
 /** Statuses during which a download loop should be alive in some tab. */
 export const isActiveStatus = (status: ProcessingState['status']): boolean =>
@@ -11,3 +11,7 @@ export const isActiveStatus = (status: ProcessingState['status']): boolean =>
  */
 export const isInterrupted = (state: ProcessingState | null, loopFound: boolean): boolean =>
   !!state && isActiveStatus(state.status) && !loopFound;
+
+/** Lectures whose last download attempt failed; Resume (or Retry) fetches them again. */
+export const failedLectures = (curriculum: UdemyCurriculumItem[]): UdemyCurriculumItem[] =>
+  curriculum.filter((item) => item.failedReason !== undefined && !item.isCompleted);

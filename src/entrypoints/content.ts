@@ -11,6 +11,7 @@ import {
   transcriptMarkdown,
 } from '@/utils/udemy-api';
 import { generateZip } from '@/utils/file-generator';
+import { failedLectures } from '@/utils/status';
 
 export default defineContentScript({
   // All course pages, not only /learn/lecture/*: Udemy navigates between course pages (landing,
@@ -97,8 +98,10 @@ export default defineContentScript({
 
       try {
         // --- Initialization Phase ---
-        // Resume continues saved progress; anything else (or nothing to continue) starts over.
-        if (run.mode === 'start' || !saved || state.status === 'completed' || state.status === 'error') {
+        // Resume continues saved progress, whatever the status: after a pause or interruption, after
+        // an error, and after completion with failed lectures (Retry), which are still incomplete.
+        // It starts over only when there is nothing to continue.
+        if (run.mode === 'start' || !saved || state.curriculum.length === 0) {
           await update({
             status: 'running',
             courseTitle,
@@ -123,7 +126,6 @@ export default defineContentScript({
         }
 
         const curriculum = [...state.curriculum];
-        let failedLectures = 0;
 
         for (const item of curriculum) {
           // 1. Check Pause
@@ -151,16 +153,18 @@ export default defineContentScript({
             markdown = transcriptMarkdown(await fetchTranscript(courseId, item.id, state.language), state.languageLabel);
           } catch (err) {
             console.error(err);
-            // Leave the lecture incomplete so Resume (after a pause) retries it, and mark the gap
-            // in the ZIP rather than leaving the lecture out silently.
-            failedLectures++;
-            item.markdownContent = `> [Transcript download failed: ${err instanceof Error ? err.message : err}]`;
-            await update({ curriculum, logs: [...state.logs, `Error on ${item.title}: ${err}`] });
+            // Leave the lecture incomplete so Resume or Retry fetches it again, and mark the gap in
+            // the ZIP rather than leaving the lecture out silently.
+            const reason = err instanceof Error ? err.message : String(err);
+            item.failedReason = reason;
+            item.markdownContent = `> [Transcript download failed: ${reason}]`;
+            await update({ curriculum, logs: [...state.logs, `Failed: ${item.title} (${reason})`] });
             continue;
           }
 
           item.isCompleted = true;
           item.markdownContent = markdown;
+          delete item.failedReason;
 
           // 3. Save State (Recoverability)
           await update({ curriculum, completedLectures: state.completedLectures + 1 });
@@ -170,15 +174,17 @@ export default defineContentScript({
         await update({ currentTask: 'Zipping files...' });
         await generateZip(curriculum, state.courseTitle);
 
+        const failed = failedLectures(curriculum).length;
         await update({
           status: 'completed',
-          currentTask: failedLectures > 0
-            ? `Download Finished. ${failedLectures} lecture(s) failed and are marked in the ZIP.`
+          currentTask: failed > 0
+            ? `Download Finished. ${failed} lecture(s) failed and are marked in the ZIP.`
             : 'Download Finished',
+          logs: [...state.logs, failed > 0 ? `Finished with ${failed} failed lecture(s)` : 'Finished'],
         });
       } catch (e: any) {
         console.error(e);
-        await update({ status: 'error', currentTask: `Error: ${e.message}` });
+        await update({ status: 'error', currentTask: `Error: ${e.message}`, logs: [...state.logs, `Stopped: ${e.message}`] });
       }
     };
 

@@ -244,7 +244,9 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 ### Error Handling
 - Lectures without any captions are included as "[No Transcript Available]"
 - Lectures without captions in the chosen language say which languages they do have, e.g. "[No German transcript. Available: English, Spanish]", so you know a download in another language would fill the gap
-- A failed request (HTTP error, rate limit, network) is not treated as "no transcript": the lecture is marked "[Transcript download failed: …]" in the ZIP, stays unfinished so Resume after a pause retries it, and the final status reports how many lectures failed
+- A failed request (HTTP error, rate limit, network) is not treated as "no transcript": the lecture is marked "[Transcript download failed: …]" in the ZIP and stays unfinished. The popup lists failed lectures with the reason, and **Retry N failed** fetches only those and saves a new ZIP
+- If a download stops with an error (e.g. storage), **Resume** continues from the saved progress; **Start Over** fetches everything again
+- The popup shows the download's log (the last 50 entries)
 - Continues processing even if individual lecture fails
 
 ## 🔒 Permissions

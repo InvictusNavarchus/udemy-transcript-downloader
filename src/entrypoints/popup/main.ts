@@ -1,6 +1,6 @@
 import { browser, type Browser } from 'wxt/browser';
 import { deleteCourseState, listCourseStates, preferredLanguage, stateSize } from '@/utils/storage';
-import { isActiveStatus, isInterrupted } from '@/utils/status';
+import { failedLectures, isActiveStatus, isInterrupted } from '@/utils/status';
 import { formatBytes } from '@/utils/helpers';
 import { generateZip } from '@/utils/file-generator';
 import type { CaptionLanguage, MessagePayload, PageInfo, ProcessingState } from '@/utils/types';
@@ -32,6 +32,12 @@ const els = {
   saved: getElement<HTMLElement>('saved'),
   total: getElement<HTMLElement>('storage-total'),
   list: getElement<HTMLUListElement>('course-list'),
+  failures: getElement<HTMLDetailsElement>('failures'),
+  failuresSummary: getElement<HTMLElement>('failures-summary'),
+  failuresList: getElement<HTMLUListElement>('failures-list'),
+  log: getElement<HTMLDetailsElement>('log'),
+  logSummary: getElement<HTMLElement>('log-summary'),
+  logList: getElement<HTMLOListElement>('log-list'),
 };
 
 const COURSE_TAB_PATTERN = 'https://www.udemy.com/course/*';
@@ -115,11 +121,15 @@ function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: Proc
   els.fill.style.width = `${total > 0 ? Math.round((done / total) * 100) : 0}%`;
   els.count.textContent = `${done} / ${total}`;
 
+  renderDetails(state);
+
   show(els.start, false);
   show(els.resume, false);
   show(els.pause, false);
   show(els.saveZip, false);
   show(els.languageRow, false);
+  els.resume.textContent = 'Resume';
+  const failed = state ? failedLectures(state.curriculum).length : 0;
   if (interrupted) {
     show(els.resume, true);
   } else if (state?.status === 'running') {
@@ -131,11 +141,38 @@ function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: Proc
     // A finished course: save its ZIP again from the stored transcripts, or download it again
     // (e.g. for lectures added since, or in another language).
     show(els.saveZip, state?.status === 'completed');
-    els.start.textContent = state?.status === 'completed' ? 'Download Again' : 'Start Download';
+    // Resume fetches only the lectures not done yet: the failed ones after completion, or the rest
+    // after an error. Starting over is still offered next to it.
+    if (state?.status === 'completed' && failed > 0) {
+      els.resume.textContent = `Retry ${failed} failed`;
+      show(els.resume, true);
+    } else if (state?.status === 'error' && state.curriculum.length > 0) {
+      show(els.resume, true);
+    }
+    els.start.textContent =
+      state?.status === 'completed' ? 'Download Again' : state?.status === 'error' ? 'Start Over' : 'Start Download';
     show(els.start, true);
     show(els.languageRow, true);
     void loadLanguages(page.tabId, state);
   }
+}
+
+/** Shown in the popup; older entries stay in storage and are visible again after a Start. */
+const LOG_LINES = 50;
+
+/** The failed-lecture list and the log, below the buttons. Their open/closed state is kept. */
+function renderDetails(state: ProcessingState | null) {
+  const failed = state ? failedLectures(state.curriculum) : [];
+  show(els.failures, failed.length > 0);
+  els.failuresSummary.textContent = `${failed.length} lecture${failed.length === 1 ? '' : 's'} failed`;
+  els.failuresList.replaceChildren(
+    ...failed.map((item) => h('li', {}, h('strong', { textContent: item.title }), ` — ${item.failedReason}`))
+  );
+
+  const logs = state?.logs ?? [];
+  show(els.log, logs.length > 0);
+  els.logSummary.textContent = `Log (${logs.length})`;
+  els.logList.replaceChildren(...logs.slice(-LOG_LINES).map((line) => h('li', { textContent: line })));
 }
 
 // --- Course list ---

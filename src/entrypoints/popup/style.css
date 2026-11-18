@@ -61,7 +61,7 @@ h2 { font-size: 14px; margin: 0 0 8px 0; white-space: nowrap; overflow: hidden; 
   margin-bottom: 16px;
 }
 
-.actions { display: flex; gap: 8px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .btn {
   flex: 1;
@@ -169,3 +169,23 @@ h3 { font-size: 13px; margin: 0; color: var(--text); }
 .row-actions { display: flex; gap: 12px; font-size: 11px; }
 
 .danger { color: #c4122f; font-weight: 600; }
+
+.details {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #6a6f73;
+}
+
+.details summary { cursor: pointer; font-weight: 600; }
+
+.details ul,
+.details ol {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.details li { margin-bottom: 2px; overflow-wrap: anywhere; }
+
+#failures summary { color: #c4122f; }

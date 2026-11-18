@@ -12,6 +12,7 @@ export interface UdemyCurriculumItem {
   // Internal state
   isCompleted?: boolean;
   markdownContent?: string;
+  failedReason?: string; // Set while the last attempt failed; the lecture stays incomplete
 }
 
 /** One caption track of a lecture, as returned by Udemy's lecture asset API. */
