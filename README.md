@@ -278,7 +278,7 @@ CourseTitle_Transcripts.zip
 ## ⚠️ Limitations
 
 - **Enrollment Required**: Only works for courses you're enrolled in
-- **English Transcripts Only**: Currently extracts English captions only
+- **English Transcripts Only**: Currently extracts English captions only (any English locale, such as US or UK). Instructor-written captions are preferred over auto-generated ones
 - **Video Lectures Only**: Skips non-video content (quizzes, documents)
 - **API Dependent**: Requires Udemy API availability (can be shutdown by Udemy at any time)
 - **Rate Limiting**: Random delays to prevent API throttling may increase download time

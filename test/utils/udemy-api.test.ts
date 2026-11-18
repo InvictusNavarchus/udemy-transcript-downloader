@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchCurriculum, fetchTranscript, getCourseId } from '@/utils/udemy-api';
+import { fetchCurriculum, fetchTranscript, getCourseId, pickCaption } from '@/utils/udemy-api';
+import type { UdemyCaption } from '@/utils/types';
 import { vttToMarkdown } from '@/utils/helpers';
 import { fixtureJson, fixtureText, type FixtureSet } from '../helpers';
 
@@ -173,9 +174,7 @@ describe('fetchTranscript', () => {
     expect(fetchMock).toHaveBeenLastCalledWith(enUrl);
   });
 
-  // Known bug: only `en_US` actually matches. Udemy's caption objects have no `language`
-  // field, so the `language === 'en'` fallback is dead code and en_GB/en_AU-only courses get nothing.
-  it.fails('accepts other English locales such as en_GB', async () => {
+  it('accepts other English locales such as en_GB', async () => {
     const lecture = fixtureJson('course-a', 'lecture.json');
     const caption = lecture.asset.captions[0];
     caption.locale_id = 'en_GB';
@@ -185,5 +184,37 @@ describe('fetchTranscript', () => {
       [caption.url]: () => text(fixtureText('course-a', 'captions.vtt')),
     });
     expect(await fetchTranscript(COURSE_ID, lecture.id)).toBe(vttToMarkdown(fixtureText('course-a', 'captions.vtt')));
+  });
+});
+
+describe('pickCaption', () => {
+  const track = (locale_id: string, source: string): UdemyCaption => ({
+    locale_id,
+    source,
+    url: `https://captions.example/${locale_id}-${source}.vtt`,
+  });
+
+  it('matches any locale of the language', () => {
+    expect(pickCaption([track('de_DE', 'auto'), track('en_AU', 'auto')], 'en')?.locale_id).toBe('en_AU');
+  });
+
+  it('prefers a manual track over an auto-generated one', () => {
+    const manual = track('en_GB', 'manual');
+    expect(pickCaption([track('en_US', 'auto'), manual], 'en')).toBe(manual);
+  });
+
+  it('picks the only English track among many auto tracks (course-b)', () => {
+    const { captions } = fixtureJson('course-b', 'lecture.json').asset;
+    expect(pickCaption(captions, 'en')?.locale_id).toBe('en_US');
+  });
+
+  it('skips tracks without a URL', () => {
+    const noUrl = { ...track('en_US', 'manual'), url: undefined };
+    const auto = track('en_US', 'auto');
+    expect(pickCaption([noUrl, auto], 'en')).toBe(auto);
+  });
+
+  it('returns null when no track is in the language', () => {
+    expect(pickCaption([track('fr_FR', 'auto')], 'en')).toBeNull();
   });
 });

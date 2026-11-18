@@ -1,4 +1,4 @@
-import type { UdemyCurriculumItem } from './types';
+import type { UdemyCaption, UdemyCurriculumItem } from './types';
 import { randomDelay, vttToMarkdown } from './helpers';
 
 /**
@@ -56,6 +56,18 @@ export const fetchCurriculum = async (courseId: number): Promise<UdemyCurriculum
 };
 
 /**
+ * Picks the caption track to download for a language.
+ * Matches on the language part of `locale_id`, so 'en' accepts en_US, en_GB, en_AU, etc.
+ * Among matches, an instructor-written ('manual') track wins over a machine-generated one.
+ * @param language - Lowercase ISO 639-1 code, e.g. 'en'
+ * @returns The chosen track, or null if no track with a URL is in that language
+ */
+export const pickCaption = (captions: UdemyCaption[], language: string): UdemyCaption | null => {
+  const matches = captions.filter((c) => c.url && c.locale_id?.split('_')[0]?.toLowerCase() === language);
+  return matches.find((c) => c.source === 'manual') ?? matches[0] ?? null;
+};
+
+/**
  * Fetches and processes the transcript for a specific lecture.
  * @param courseId - The Udemy course ID
  * @param lectureId - The specific lecture ID
@@ -73,13 +85,12 @@ export const fetchTranscript = async (courseId: number, lectureId: number): Prom
 
   if (!captions || !Array.isArray(captions)) return null;
 
-  // Filter for English
-  const enCaption = captions.find((c: any) => c.locale_id === 'en_US' || c.language === 'en');
-  if (!enCaption?.url) return null;
+  const caption = pickCaption(captions, 'en');
+  if (!caption?.url) return null;
 
   // Fetch VTT content
   try {
-    const vttRes = await fetch(enCaption.url);
+    const vttRes = await fetch(caption.url);
     if (!vttRes.ok) return null;
     const vttText = await vttRes.text();
     return vttToMarkdown(vttText);

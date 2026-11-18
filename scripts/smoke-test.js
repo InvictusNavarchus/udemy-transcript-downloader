@@ -55,15 +55,17 @@
       fixtures.lecture = lec;
       const captions = lec?.asset?.captions;
       if (!ok('asset.captions is array', Array.isArray(captions), `${captions?.length} (${video.title})`)) return;
-      log('caption locales', 'INFO', captions.map((c) => `${c.locale_id}/${c.language}`).join(', ') || 'none');
-      en = captions.find((c) => c.locale_id === 'en_US' || c.language === 'en');
+      log('caption locales', 'INFO', captions.map((c) => `${c.locale_id}/${c.source}`).join(', ') || 'none');
+      // Same rule as pickCaption: any English locale, manual before auto.
+      const english = captions.filter((c) => c.url && c.locale_id?.split('_')[0]?.toLowerCase() === 'en');
+      en = english.find((c) => c.source === 'manual') ?? english[0];
       if (en?.url) break;
     }
     if (!en?.url) {
       log('English caption selected', 'WARN', `none in the first ${Math.min(videos.length, MAX_LECTURES)} Video lectures; VTT checks skipped`);
       return;
     }
-    ok('English caption selected', true, en.locale_id);
+    ok('English caption selected', true, `${en.locale_id}/${en.source}`);
 
     // 4. VTT download
     const vttRes = await fetch(en.url);
