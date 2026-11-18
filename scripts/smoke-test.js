@@ -37,21 +37,33 @@
     ok('_class values known', classes.every((c) => ['chapter', 'lecture', 'quiz'].includes(c)), classes.join(', '));
     const assetTypes = [...new Set(items.filter((i) => i._class === 'lecture').map((i) => i.asset?.asset_type))];
     log('lecture asset types', 'INFO', assetTypes.join(', '));
-    const video = items.find((i) => i._class === 'lecture' && i.asset?.asset_type === 'Video');
-    if (!ok('found a Video lecture', !!video, video?.title)) return;
+    const videos = items.filter((i) => i._class === 'lecture' && i.asset?.asset_type === 'Video');
+    if (!ok('found Video lectures', videos.length > 0, videos.length)) return;
 
     // 3. Captions API (fetchTranscript)
-    const lecRes = await fetch(
-      `https://www.udemy.com/api-2.0/users/me/subscribed-courses/${courseId}/lectures/${video.id}/?fields%5Blecture%5D=asset&fields%5Basset%5D=captions`
-    );
-    if (!ok('lecture HTTP', lecRes.ok, lecRes.status)) return;
-    const lec = await lecRes.json();
-    fixtures.lecture = lec;
-    const captions = lec?.asset?.captions;
-    if (!ok('asset.captions is array', Array.isArray(captions), captions?.length)) return;
-    log('caption locales', 'INFO', captions.map((c) => `${c.locale_id}/${c.language}`).join(', '));
-    const en = captions.find((c) => c.locale_id === 'en_US' || c.language === 'en');
-    if (!ok('English caption selected', !!en?.url, en?.locale_id)) return;
+    // A lecture without English captions is a normal outcome (fetchTranscript returns null),
+    // not an API contract failure, so try a few lectures. The cap keeps the request count low
+    // on courses that have no English captions at all.
+    const MAX_LECTURES = 5;
+    let en;
+    for (const video of videos.slice(0, MAX_LECTURES)) {
+      const lecRes = await fetch(
+        `https://www.udemy.com/api-2.0/users/me/subscribed-courses/${courseId}/lectures/${video.id}/?fields%5Blecture%5D=asset&fields%5Basset%5D=captions`
+      );
+      if (!ok('lecture HTTP', lecRes.ok, `${lecRes.status} (${video.title})`)) return;
+      const lec = await lecRes.json();
+      fixtures.lecture = lec;
+      const captions = lec?.asset?.captions;
+      if (!ok('asset.captions is array', Array.isArray(captions), `${captions?.length} (${video.title})`)) return;
+      log('caption locales', 'INFO', captions.map((c) => `${c.locale_id}/${c.language}`).join(', ') || 'none');
+      en = captions.find((c) => c.locale_id === 'en_US' || c.language === 'en');
+      if (en?.url) break;
+    }
+    if (!en?.url) {
+      log('English caption selected', 'WARN', `none in the first ${Math.min(videos.length, MAX_LECTURES)} Video lectures; VTT checks skipped`);
+      return;
+    }
+    ok('English caption selected', true, en.locale_id);
 
     // 4. VTT download
     const vttRes = await fetch(en.url);
