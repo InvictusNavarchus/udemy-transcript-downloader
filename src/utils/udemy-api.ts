@@ -1,4 +1,4 @@
-import type { UdemyCurriculumItem } from './types';
+import type { UdemyCaption, UdemyCurriculumItem } from './types';
 import { randomDelay, vttToMarkdown } from './helpers';
 
 /**
@@ -29,21 +29,39 @@ export const getCourseId = (): number => {
 };
 
 /**
+ * Extracts the course title from the course player's tab title, e.g.
+ * "Course: Touch Typing Mastery | Udemy" -> "Touch Typing Mastery".
+ * Only the English "Course: " label is removed; other UI languages may use a translated label.
+ */
+export const courseTitleFromDocumentTitle = (documentTitle: string): string =>
+  // Remove only Udemy's own " | Udemy" suffix: a course name may itself contain "|".
+  documentTitle.replace(/\s*\|\s*Udemy\s*$/, '').trim().replace(/^Course:\s+/, '');
+
+/**
  * Fetches the complete course curriculum from Udemy API.
  * @param courseId - The Udemy course ID
  * @returns Array of curriculum items (chapters, lectures, quizzes)
  */
 export const fetchCurriculum = async (courseId: number): Promise<UdemyCurriculumItem[]> => {
-  // Fetching up to 1000 items to be safe
-  const url = `https://www.udemy.com/api-2.0/courses/${courseId}/subscriber-curriculum-items/?curriculum_types=chapter%2Clecture%2Cquiz&page_size=1000&fields%5Blecture%5D=title%2Casset&fields%5Bchapter%5D=title`;
-  
-  await randomDelay();
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Curriculum API Error: ${response.status}`);
-  const data = await response.json();
-  
+  // Pages hold up to 1000 items; longer courses continue at the absolute URL in `next`.
+  let url: string | null = `https://www.udemy.com/api-2.0/courses/${courseId}/subscriber-curriculum-items/?curriculum_types=chapter%2Clecture%2Cquiz&page_size=1000&fields%5Blecture%5D=title%2Casset&fields%5Bchapter%5D=title`;
+  const rawResults: any[] = [];
+  const fetched = new Set<string>();
+
+  while (url) {
+    // Guard against a `next` that points back to a page already fetched, which would otherwise
+    // request Udemy's API in an endless loop from the user's account.
+    if (fetched.has(url)) throw new Error(`Curriculum pagination loops back to ${url}`);
+    fetched.add(url);
+    await randomDelay();
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Curriculum API Error: ${response.status}`);
+    const data: { results?: any[]; next?: string | null } = await response.json();
+    rawResults.push(...(data.results || []));
+    url = data.next || null;
+  }
+
   // Map to internal structure
-  const rawResults = data.results || [];
   return rawResults.map((item: any) => ({
     _class: item._class,
     id: item.id,
@@ -56,34 +74,50 @@ export const fetchCurriculum = async (courseId: number): Promise<UdemyCurriculum
 };
 
 /**
+ * Whether a curriculum item is a video lecture, the only kind that can have captions.
+ * Articles, e-books, files and other lecture types are skipped by the download loop and
+ * left out of the progress total.
+ */
+export const isVideoLecture = (item: UdemyCurriculumItem): boolean =>
+  item.type === 'lecture' && item.asset?.asset_type === 'Video';
+
+/**
+ * Picks the caption track to download for a language.
+ * Matches on the language part of `locale_id`, so 'en' accepts en_US, en_GB, en_AU, etc.
+ * Among matches, an instructor-written ('manual') track wins over a machine-generated one.
+ * @param language - Lowercase ISO 639-1 code, e.g. 'en'
+ * @returns The chosen track, or null if no track with a URL is in that language
+ */
+export const pickCaption = (captions: UdemyCaption[], language: string): UdemyCaption | null => {
+  const matches = captions.filter((c) => c.url && c.locale_id?.split('_')[0]?.toLowerCase() === language);
+  return matches.find((c) => c.source === 'manual') ?? matches[0] ?? null;
+};
+
+/**
  * Fetches and processes the transcript for a specific lecture.
  * @param courseId - The Udemy course ID
  * @param lectureId - The specific lecture ID
- * @returns Markdown-formatted transcript, or null if unavailable
+ * @returns Markdown-formatted transcript, or null if the lecture has no English captions
+ * @throws {Error} If a request fails (HTTP error or network), so the caller can retry the
+ *   lecture later instead of recording it as having no transcript
  */
 export const fetchTranscript = async (courseId: number, lectureId: number): Promise<string | null> => {
   const url = `https://www.udemy.com/api-2.0/users/me/subscribed-courses/${courseId}/lectures/${lectureId}/?fields%5Blecture%5D=asset&fields%5Basset%5D=captions`;
   
   await randomDelay();
   const response = await fetch(url);
-  if (!response.ok) return null; // Likely no access or not a video
+  if (!response.ok) throw new Error(`Lecture API Error: ${response.status}`);
   
   const data = await response.json();
   const captions = data?.asset?.captions;
 
   if (!captions || !Array.isArray(captions)) return null;
 
-  // Filter for English
-  const enCaption = captions.find((c: any) => c.locale_id === 'en_US' || c.language === 'en');
-  if (!enCaption?.url) return null;
+  const caption = pickCaption(captions, 'en');
+  if (!caption?.url) return null;
 
   // Fetch VTT content
-  try {
-    const vttRes = await fetch(enCaption.url);
-    if (!vttRes.ok) return null;
-    const vttText = await vttRes.text();
-    return vttToMarkdown(vttText);
-  } catch {
-    return null;
-  }
+  const vttRes = await fetch(caption.url);
+  if (!vttRes.ok) throw new Error(`Caption download error: ${vttRes.status}`);
+  return vttToMarkdown(await vttRes.text());
 };

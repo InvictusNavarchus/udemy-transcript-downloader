@@ -32,13 +32,33 @@
     fixtures.curriculum = cur;
     const items = cur.results ?? [];
     ok('curriculum.results is array', Array.isArray(cur.results), `${items.length} items (count=${cur.count})`);
-    log('pagination (next)', cur.next ? 'WARN' : 'PASS', cur.next ?? 'none');
+    log('pagination (next)', cur.next ? 'INFO' : 'PASS', cur.next ? `more pages follow (only the first is checked): ${cur.next}` : 'none');
     const classes = [...new Set(items.map((i) => i._class))];
     ok('_class values known', classes.every((c) => ['chapter', 'lecture', 'quiz'].includes(c)), classes.join(', '));
     const assetTypes = [...new Set(items.filter((i) => i._class === 'lecture').map((i) => i.asset?.asset_type))];
     log('lecture asset types', 'INFO', assetTypes.join(', '));
     const videos = items.filter((i) => i._class === 'lecture' && i.asset?.asset_type === 'Video');
     if (!ok('found Video lectures', videos.length > 0, videos.length)) return;
+
+    // 2b. Pagination contract (fetchCurriculum follows `next`)
+    // Force tiny pages so any course with more than 2 items has a second page, and check that
+    // `next` is an absolute API URL that keeps the field selection.
+    const smallRes = await fetch(
+      `https://www.udemy.com/api-2.0/courses/${courseId}/subscriber-curriculum-items/?curriculum_types=chapter%2Clecture%2Cquiz&page_size=2&fields%5Blecture%5D=title%2Casset&fields%5Bchapter%5D=title`
+    );
+    const small = smallRes.ok ? await smallRes.json() : null;
+    if (!small?.next) {
+      log('pagination: next link', small ? 'WARN' : 'FAIL', small ? `no next with page_size=2 (count=${small.count}); not checked` : smallRes.status);
+    } else {
+      ok('pagination: next is absolute API URL', small.next.startsWith('https://www.udemy.com/api-2.0/'), small.next);
+      ok('pagination: next keeps fields', small.next.includes('fields%5Blecture%5D=title%2Casset'), small.next);
+      const page2Res = await fetch(small.next);
+      const page2 = page2Res.ok ? await page2Res.json() : null;
+      if (ok('pagination: page 2 HTTP', page2Res.ok, page2Res.status)) {
+        const lectures = (page2.results ?? []).filter((i) => i._class === 'lecture');
+        ok('pagination: page 2 lectures keep asset field', lectures.every((i) => 'asset' in i), `${lectures.length} lectures`);
+      }
+    }
 
     // 3. Captions API (fetchTranscript)
     // A lecture without English captions is a normal outcome (fetchTranscript returns null),
@@ -55,15 +75,17 @@
       fixtures.lecture = lec;
       const captions = lec?.asset?.captions;
       if (!ok('asset.captions is array', Array.isArray(captions), `${captions?.length} (${video.title})`)) return;
-      log('caption locales', 'INFO', captions.map((c) => `${c.locale_id}/${c.language}`).join(', ') || 'none');
-      en = captions.find((c) => c.locale_id === 'en_US' || c.language === 'en');
+      log('caption locales', 'INFO', captions.map((c) => `${c.locale_id}/${c.source}`).join(', ') || 'none');
+      // Same rule as pickCaption: any English locale, manual before auto.
+      const english = captions.filter((c) => c.url && c.locale_id?.split('_')[0]?.toLowerCase() === 'en');
+      en = english.find((c) => c.source === 'manual') ?? english[0];
       if (en?.url) break;
     }
     if (!en?.url) {
       log('English caption selected', 'WARN', `none in the first ${Math.min(videos.length, MAX_LECTURES)} Video lectures; VTT checks skipped`);
       return;
     }
-    ok('English caption selected', true, en.locale_id);
+    ok('English caption selected', true, `${en.locale_id}/${en.source}`);
 
     // 4. VTT download
     const vttRes = await fetch(en.url);

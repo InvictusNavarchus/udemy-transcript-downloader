@@ -2,6 +2,8 @@ import { zip } from 'fflate';
 import type { UdemyCurriculumItem } from './types';
 import { sanitizeFileName, stringToBuffer } from './helpers';
 
+const REVOKE_DELAY_MS = 60_000;
+
 /**
  * Generates a ZIP file containing individual transcript files organized by chapter,
  * plus a merged full transcript file.
@@ -62,7 +64,9 @@ export const generateZip = async (
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // The click only starts the download; revoking the URL in the same tick can cancel it in
+      // some browsers (notably older Firefox). Free the blob once the download has had time to start.
+      setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
 
       resolve();
     });

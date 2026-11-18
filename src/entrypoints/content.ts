@@ -1,24 +1,62 @@
 import { defineContentScript } from '#imports';
 import { downloadState } from '@/utils/storage';
 import type { MessagePayload } from '@/utils/types';
-import { getCourseId, fetchCurriculum, fetchTranscript } from '@/utils/udemy-api';
+import { getCourseId, fetchCurriculum, fetchTranscript, isVideoLecture, courseTitleFromDocumentTitle } from '@/utils/udemy-api';
 import { generateZip } from '@/utils/file-generator';
 
 export default defineContentScript({
-  matches: ['*://www.udemy.com/course/*/learn/lecture/*'],
+  // All course pages, not only /learn/lecture/*: Udemy navigates between course pages (landing,
+  // lecture, quiz, practice) without full page loads, and a content script is only injected on
+  // a full load. The course ID is read from the page when Start is clicked, not at injection.
+  matches: ['*://www.udemy.com/course/*'],
   async main() {
     console.log('Udemy Downloader: Content Script Loaded');
 
     // --- Orchestration Logic ---
 
+    // Only one download loop may run in this tab. Pause does not stop the loop immediately: it
+    // finishes the current lecture and stops at its next status check. A Resume (or Start) that
+    // arrives before then must not start a second loop, which would process lectures twice and
+    // double-count progress.
+    let loopRunning = false;
+    // Set when a Resume arrives while a loop is alive. If that loop had already committed to
+    // stopping (it was past its status check, writing "Paused by user."), it exits without seeing
+    // the Resume, so the exit path restarts it.
+    let resumeRequested = false;
+
     const processDownload = async (resume = false) => {
+      if (loopRunning) {
+        if (resume) {
+          resumeRequested = true;
+          // A loop that has not reached its next status check sees 'running' and carries on.
+          const s = await downloadState.getValue();
+          await downloadState.setValue({ ...s, status: 'running', currentTask: 'Resuming...' });
+        }
+        return;
+      }
+      loopRunning = true;
+      resumeRequested = false;
+      try {
+        await runDownload(resume);
+      } finally {
+        loopRunning = false;
+      }
+      // Status 'running' after the loop exited means a Resume landed after its pause check.
+      // Completion, errors and a pause that won the race leave another status, so this does not
+      // restart those.
+      if (resumeRequested && (await downloadState.getValue()).status === 'running') {
+        void processDownload(true);
+      }
+    };
+
+    const runDownload = async (resume: boolean) => {
       try {
         let state = await downloadState.getValue();
         
         // --- Initialization Phase ---
         if (!resume || state.status === 'completed' || state.status === 'error') {
           const courseId = getCourseId();
-          const courseTitle = (document.title.split('|')[0] ?? '').trim();
+          const courseTitle = courseTitleFromDocumentTitle(document.title);
 
           await downloadState.setValue({
             ...state,
@@ -30,7 +68,7 @@ export default defineContentScript({
           });
 
           const curriculum = await fetchCurriculum(courseId);
-          const totalLectures = curriculum.filter(i => i.type === 'lecture' && i.asset?.asset_type === 'Video').length;
+          const totalLectures = curriculum.filter(isVideoLecture).length;
 
           state = {
             status: 'running',
@@ -59,6 +97,7 @@ export default defineContentScript({
         }
         
         const curriculum = [...state.curriculum];
+        let failedLectures = 0;
 
         for (const item of curriculum) {
           // 1. Check Pause State
@@ -68,8 +107,8 @@ export default defineContentScript({
             return;
           }
 
-          // Skip if not a lecture or if already done
-          if (item.type !== 'lecture' || !item.asset || item.isCompleted) {
+          // Skip non-video items (they have no captions and are not in the total) and finished ones
+          if (!isVideoLecture(item) || item.isCompleted) {
             continue;
           }
 
@@ -79,35 +118,38 @@ export default defineContentScript({
             currentTask: `Processing: ${item.title}` 
           });
 
+          // Only the fetch is guarded here. A failed progress save is a storage problem (e.g. the
+          // quota), not a transcript problem: it propagates and stops the run with an error
+          // instead of replacing an already-fetched transcript with a failure placeholder.
+          let transcript: string | null;
           try {
-            const transcript = await fetchTranscript(state.courseId, item.id);
-            
-            // Update item in local array
-            item.isCompleted = true;
-            if (transcript) {
-              item.markdownContent = transcript;
-            } else {
-              item.markdownContent = '> [No Transcript Available]';
-            }
-
-            // 3. Save State (Recoverability)
-            const latestState = await downloadState.getValue();
-            await downloadState.setValue({
-              ...latestState,
-              curriculum, // Save the updated array
-              completedLectures: latestState.completedLectures + 1,
-              lastUpdated: Date.now()
-            });
-
+            transcript = await fetchTranscript(state.courseId, item.id);
           } catch (err) {
             console.error(err);
-            // Log error but don't stop - append to logs for visibility
+            // Leave the lecture incomplete so Resume (after a pause) retries it, and mark the gap
+            // in the ZIP rather than leaving the lecture out silently.
+            failedLectures++;
+            item.markdownContent = `> [Transcript download failed: ${err instanceof Error ? err.message : err}]`;
             const latestState = await downloadState.getValue();
             await downloadState.setValue({
               ...latestState,
               logs: [...latestState.logs, `Error on ${item.title}: ${err}`]
             });
+            continue;
           }
+
+          // Update item in local array
+          item.isCompleted = true;
+          item.markdownContent = transcript || '> [No Transcript Available]';
+
+          // 3. Save State (Recoverability)
+          const latestState = await downloadState.getValue();
+          await downloadState.setValue({
+            ...latestState,
+            curriculum, // Save the updated array
+            completedLectures: latestState.completedLectures + 1,
+            lastUpdated: Date.now()
+          });
         }
 
         // --- Finalization ---
@@ -124,7 +166,9 @@ export default defineContentScript({
         await downloadState.setValue({ 
           ...completedState, 
           status: 'completed', 
-          currentTask: 'Download Finished' 
+          currentTask: failedLectures > 0
+            ? `Download Finished. ${failedLectures} lecture(s) failed and are marked in the ZIP.`
+            : 'Download Finished'
         });
 
       } catch (e: any) {

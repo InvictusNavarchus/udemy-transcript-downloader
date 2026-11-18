@@ -2,7 +2,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { strFromU8, unzipSync } from 'fflate';
 import { generateZip } from '@/utils/file-generator';
-import { sanitizeFileName } from '@/utils/helpers';
 import type { UdemyCurriculumItem } from '@/utils/types';
 import { fixtureJson } from '../helpers';
 
@@ -48,8 +47,7 @@ describe('generateZip', () => {
     expect(Object.keys(files).sort()).toEqual([
       '01_Introduction/01_Welcome to the course.md',
       '01_Introduction/02_Introduction to Touch Typing.md',
-      // Title sanitization is covered in helpers.test.ts; this test only checks the layout.
-      `02_Practice/01_${sanitizeFileName('Typing Marathon — keeping going')}.md`,
+      '02_Practice/01_Typing Marathon - keeping going.md',
       '03_Summary and next steps/01_Lets look back.md',
       'Touch Typing Course_Full.md',
     ]);
@@ -97,5 +95,23 @@ describe('generateZip', () => {
   it('numbers chapters even when a chapter has no lectures', async () => {
     const { files } = await runGenerateZip([chapter('Empty'), chapter('Second'), lecture('L', 'x')], 'C');
     expect(Object.keys(files).sort()).toEqual(['02_Second/01_L.md', 'C_Full.md']);
+  });
+
+  it('revokes the download URL after 60 s, not right after the click', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
+      const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      await generateZip([lecture('One', 'text')] as UdemyCurriculumItem[], 'Course');
+      vi.advanceTimersByTime(59_999);
+      expect(revoke).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(revoke).toHaveBeenCalledWith('blob:test');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

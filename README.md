@@ -187,7 +187,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 ### Entry Points
 
 #### Content Script (`content.ts`)
-- Runs on Udemy course lecture pages (`*://www.udemy.com/course/*/learn/lecture/*`)
+- Runs on all Udemy course pages (`*://www.udemy.com/course/*`), since Udemy moves between them without full page loads; downloads start from the course player (lecture, quiz, etc.)
 - Orchestrates the entire download workflow
 - Implements pause/resume functionality through state management
 - Recoverable: saves state after each lecture for crash resilience
@@ -231,9 +231,9 @@ Testing has two layers, because the extension depends on an API it doesn't contr
    Returns asset details including caption URLs
 
 ### Error Handling
-- Gracefully returns null for lectures without transcripts
+- Lectures without English captions are included as "[No Transcript Available]"
+- A failed request (HTTP error, rate limit, network) is not treated as "no transcript": the lecture is marked "[Transcript download failed: …]" in the ZIP, stays unfinished so Resume after a pause retries it, and the final status reports how many lectures failed
 - Continues processing even if individual lecture fails
-- Logs errors for debugging without stopping the entire download
 
 ## 🔒 Permissions
 
@@ -278,7 +278,7 @@ CourseTitle_Transcripts.zip
 ## ⚠️ Limitations
 
 - **Enrollment Required**: Only works for courses you're enrolled in
-- **English Transcripts Only**: Currently extracts English captions only
+- **English Transcripts Only**: Currently extracts English captions only (any English locale, such as US or UK). Instructor-written captions are preferred over auto-generated ones
 - **Video Lectures Only**: Skips non-video content (quizzes, documents)
 - **API Dependent**: Requires Udemy API availability (can be shutdown by Udemy at any time)
 - **Rate Limiting**: Random delays to prevent API throttling may increase download time

@@ -1,6 +1,14 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchCurriculum, fetchTranscript, getCourseId } from '@/utils/udemy-api';
+import {
+  courseTitleFromDocumentTitle,
+  fetchCurriculum,
+  fetchTranscript,
+  getCourseId,
+  isVideoLecture,
+  pickCaption,
+} from '@/utils/udemy-api';
+import type { UdemyCaption, UdemyCurriculumItem } from '@/utils/types';
 import { vttToMarkdown } from '@/utils/helpers';
 import { fixtureJson, fixtureText, type FixtureSet } from '../helpers';
 
@@ -84,15 +92,32 @@ describe('fetchCurriculum', () => {
     await expect(fetchCurriculum(COURSE_ID)).rejects.toThrow('Curriculum API Error: 403');
   });
 
-  // Known bug: `next` is never followed, so courses with more than 1000 items are silently cut off.
-  it.fails('follows pagination via `next`', async () => {
+  it('follows pagination via `next`', async () => {
     const page2Url = 'https://www.udemy.com/api-2.0/courses/4242/subscriber-curriculum-items/?page=2';
     stubFetch({
       [curriculumUrl(COURSE_ID)]: () =>
         json({ count: 2, next: page2Url, results: [{ _class: 'chapter', id: 1, title: 'Page 1' }] }),
       [page2Url]: () => json({ count: 2, next: null, results: [{ _class: 'chapter', id: 2, title: 'Page 2' }] }),
     });
-    expect(await fetchCurriculum(COURSE_ID)).toHaveLength(2);
+    expect((await fetchCurriculum(COURSE_ID)).map((i) => i.title)).toEqual(['Page 1', 'Page 2']);
+  });
+
+  it('throws instead of looping when `next` repeats a page', async () => {
+    const fetchMock = stubFetch({
+      [curriculumUrl(COURSE_ID)]: () =>
+        json({ next: curriculumUrl(COURSE_ID), results: [{ _class: 'chapter', id: 1, title: 'Page 1' }] }),
+    });
+    await expect(fetchCurriculum(COURSE_ID)).rejects.toThrow('Curriculum pagination loops back');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws when a later page fails', async () => {
+    const page2Url = 'https://www.udemy.com/api-2.0/courses/4242/subscriber-curriculum-items/?page=2';
+    stubFetch({
+      [curriculumUrl(COURSE_ID)]: () => json({ next: page2Url, results: [{ _class: 'chapter', id: 1, title: 'Page 1' }] }),
+      [page2Url]: () => text('busy', 503),
+    });
+    await expect(fetchCurriculum(COURSE_ID)).rejects.toThrow('Curriculum API Error: 503');
   });
 });
 
@@ -127,9 +152,9 @@ describe('fetchTranscript', () => {
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/en_US/');
   });
 
-  it('returns null when the lecture request fails', async () => {
-    const { lecture } = setup('course-a', (urls) => ({ [urls.lecture]: () => text('forbidden', 403) }));
-    expect(await fetchTranscript(COURSE_ID, lecture.id)).toBeNull();
+  it.each([403, 429, 503])('rejects when the lecture request fails with HTTP %i', async (status) => {
+    const { lecture } = setup('course-a', (urls) => ({ [urls.lecture]: () => text('nope', status) }));
+    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow(`Lecture API Error: ${status}`);
   });
 
   // Intended asymmetry with the HTTP-error case above: a thrown error propagates instead of
@@ -157,25 +182,23 @@ describe('fetchTranscript', () => {
     expect(await fetchTranscript(COURSE_ID, lecture.id)).toBeNull();
   });
 
-  it('returns null when the VTT request fails', async () => {
+  it('rejects when the VTT request fails', async () => {
     const { lecture, enUrl, fetchMock } = setup('course-a', (urls) => ({ [urls.vtt]: () => text('gone', 410) }));
-    expect(await fetchTranscript(COURSE_ID, lecture.id)).toBeNull();
+    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow('Caption download error: 410');
     expect(fetchMock).toHaveBeenLastCalledWith(enUrl);
   });
 
-  it('returns null when the VTT request throws', async () => {
+  it('rejects when the VTT request throws', async () => {
     const { lecture, enUrl, fetchMock } = setup('course-a', (urls) => ({
       [urls.vtt]: () => {
         throw new TypeError('NetworkError');
       },
     }));
-    expect(await fetchTranscript(COURSE_ID, lecture.id)).toBeNull();
+    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow('NetworkError');
     expect(fetchMock).toHaveBeenLastCalledWith(enUrl);
   });
 
-  // Known bug: only `en_US` actually matches. Udemy's caption objects have no `language`
-  // field, so the `language === 'en'` fallback is dead code and en_GB/en_AU-only courses get nothing.
-  it.fails('accepts other English locales such as en_GB', async () => {
+  it('accepts other English locales such as en_GB', async () => {
     const lecture = fixtureJson('course-a', 'lecture.json');
     const caption = lecture.asset.captions[0];
     caption.locale_id = 'en_GB';
@@ -185,5 +208,76 @@ describe('fetchTranscript', () => {
       [caption.url]: () => text(fixtureText('course-a', 'captions.vtt')),
     });
     expect(await fetchTranscript(COURSE_ID, lecture.id)).toBe(vttToMarkdown(fixtureText('course-a', 'captions.vtt')));
+  });
+});
+
+describe('pickCaption', () => {
+  const track = (locale_id: string, source: string): UdemyCaption => ({
+    locale_id,
+    source,
+    url: `https://captions.example/${locale_id}-${source}.vtt`,
+  });
+
+  it('matches any locale of the language', () => {
+    expect(pickCaption([track('de_DE', 'auto'), track('en_AU', 'auto')], 'en')?.locale_id).toBe('en_AU');
+  });
+
+  it('prefers a manual track over an auto-generated one', () => {
+    const manual = track('en_GB', 'manual');
+    expect(pickCaption([track('en_US', 'auto'), manual], 'en')).toBe(manual);
+  });
+
+  it('picks the only English track among many auto tracks (course-b)', () => {
+    const { captions } = fixtureJson('course-b', 'lecture.json').asset;
+    expect(pickCaption(captions, 'en')?.locale_id).toBe('en_US');
+  });
+
+  it('skips tracks without a URL', () => {
+    const noUrl = { ...track('en_US', 'manual'), url: undefined };
+    const auto = track('en_US', 'auto');
+    expect(pickCaption([noUrl, auto], 'en')).toBe(auto);
+  });
+
+  it('returns null when no track is in the language', () => {
+    expect(pickCaption([track('fr_FR', 'auto')], 'en')).toBeNull();
+  });
+});
+
+describe('isVideoLecture', () => {
+  const item = (type: UdemyCurriculumItem['type'], asset_type?: string): UdemyCurriculumItem => ({
+    _class: type,
+    id: 1,
+    title: 'x',
+    sort_order: 0,
+    type,
+    asset: asset_type ? { id: 1, title: 'x', asset_type } : undefined,
+  });
+
+  it('accepts video lectures', () => {
+    expect(isVideoLecture(item('lecture', 'Video'))).toBe(true);
+  });
+
+  it.each(['Article', 'E-Book', 'File', 'Presentation'])('rejects %s lectures', (assetType) => {
+    expect(isVideoLecture(item('lecture', assetType))).toBe(false);
+  });
+
+  it('rejects lectures without an asset, chapters and quizzes', () => {
+    expect(isVideoLecture(item('lecture'))).toBe(false);
+    expect(isVideoLecture(item('chapter'))).toBe(false);
+    expect(isVideoLecture(item('quiz', 'Video'))).toBe(false);
+  });
+});
+
+describe('courseTitleFromDocumentTitle', () => {
+  it.each([
+    ['Course: Touch Typing Mastery | Udemy', 'Touch Typing Mastery'],
+    ['Course: Python: The Complete Guide | Udemy', 'Python: The Complete Guide'],
+    ['Touch Typing Mastery | Udemy', 'Touch Typing Mastery'],
+    ['Coursework Basics | Udemy', 'Coursework Basics'],
+    ['Course:Design Basics | Udemy', 'Course:Design Basics'],
+    ['Course: Data Science | Machine Learning | Udemy', 'Data Science | Machine Learning'],
+    ['', ''],
+  ])('%j -> %j', (input, expected) => {
+    expect(courseTitleFromDocumentTitle(input)).toBe(expected);
   });
 });
