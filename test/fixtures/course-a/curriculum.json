@@ -1,0 +1,70 @@
+{
+  "count": 7,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "_class": "chapter",
+      "id": 13788473,
+      "title": "Introduction"
+    },
+    {
+      "_class": "lecture",
+      "id": 58439021,
+      "title": "Welcome to the course!",
+      "asset": {
+        "_class": "asset",
+        "id": 76452009,
+        "asset_type": "Video",
+        "title": "Introduction_part.mov",
+        "created": "2026-10-08T11:25:55Z"
+      }
+    },
+    {
+      "_class": "lecture",
+      "id": 58455231,
+      "title": "Introduction to Touch Typing",
+      "asset": {
+        "_class": "asset",
+        "id": 76452209,
+        "asset_type": "Video",
+        "title": "Introduction to the touch typing.mov",
+        "created": "2026-10-08T11:35:26Z"
+      }
+    },
+    {
+      "_class": "chapter",
+      "id": 13792431,
+      "title": "Practice"
+    },
+    {
+      "_class": "lecture",
+      "id": 58458267,
+      "title": "Typing Marathon — keeping going",
+      "asset": {
+        "_class": "asset",
+        "id": 76456387,
+        "asset_type": "Video",
+        "title": "Typing Marathon-1.mov",
+        "created": "2026-10-08T13:10:47Z"
+      }
+    },
+    {
+      "_class": "chapter",
+      "id": 13792763,
+      "title": "Summary and next steps"
+    },
+    {
+      "_class": "lecture",
+      "id": 58458515,
+      "title": "Let’s look back",
+      "asset": {
+        "_class": "asset",
+        "id": 76456747,
+        "asset_type": "Video",
+        "title": "Summary and next steps-1.mov",
+        "created": "2026-10-08T13:28:53Z"
+      }
+    }
+  ]
+}
