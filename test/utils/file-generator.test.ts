@@ -97,7 +97,7 @@ describe('generateZip', () => {
     expect(Object.keys(files).sort()).toEqual(['02_Second/01_L.md', 'C_Full.md']);
   });
 
-  it('revokes the download URL only after a delay, not right after the click', async () => {
+  it('revokes the download URL after 60 s, not right after the click', async () => {
     vi.useFakeTimers();
     try {
       vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
@@ -105,9 +105,10 @@ describe('generateZip', () => {
       vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
       await generateZip([lecture('One', 'text')] as UdemyCurriculumItem[], 'Course');
+      vi.advanceTimersByTime(59_999);
       expect(revoke).not.toHaveBeenCalled();
 
-      vi.runAllTimers();
+      vi.advanceTimersByTime(1);
       expect(revoke).toHaveBeenCalledWith('blob:test');
     } finally {
       vi.useRealTimers();
