@@ -51,7 +51,7 @@ const decodeVttEntities = (text: string): string =>
   });
 
 /**
- * Flattens a WebVTT file into one paragraph of plain text.
+ * Flattens a WebVTT file into one paragraph of Markdown-safe text.
  *
  * Works cue by cue rather than line by line: a cue is a blank-line-separated block whose
  * timing line contains `-->`. Everything before the timing line (the optional cue ID) is
@@ -75,7 +75,10 @@ export const vttToMarkdown = (vttRaw: string): string => {
     texts.push(decodeVttEntities(payload.replace(/<[^>]*>/g, '')));
   }
 
-  return texts.join(' ').replace(/\s+/g, ' ').trim();
+  // The result is written into .md files. A decoded "<" (from "&lt;" in the captions, e.g. a
+  // course that talks about <div>) would otherwise be rendered as an HTML tag and vanish from
+  // Markdown previews; "\<" renders as "<" and still reads naturally as plain text.
+  return texts.join(' ').replace(/\s+/g, ' ').trim().replace(/</g, '\\<');
 };
 
 export const stringToBuffer = (str: string) => strToU8(str);

@@ -51,7 +51,13 @@ describe('vttToMarkdown', () => {
   it('decodes character references after stripping tags', () => {
     expect(
       vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\nR&amp;D uses &lt;b&gt; tags &#8212; &#x2014; caf&eacute;\n')
-    ).toBe('R&D uses <b> tags \u2014 \u2014 caf&eacute;');
+    ).toBe('R&D uses \\<b> tags \u2014 \u2014 caf&eacute;');
+  });
+
+  it('escapes "<" so decoded tag-like caption text stays visible in Markdown', () => {
+    expect(vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\nWrap it in a &lt;div&gt; element\n')).toBe(
+      'Wrap it in a \\<div> element'
+    );
   });
 
   it('skips header metadata, NOTE and STYLE blocks', () => {
