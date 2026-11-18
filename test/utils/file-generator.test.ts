@@ -96,4 +96,21 @@ describe('generateZip', () => {
     const { files } = await runGenerateZip([chapter('Empty'), chapter('Second'), lecture('L', 'x')], 'C');
     expect(Object.keys(files).sort()).toEqual(['02_Second/01_L.md', 'C_Full.md']);
   });
+
+  it('revokes the download URL only after a delay, not right after the click', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
+      const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      await generateZip([lecture('One', 'text')] as UdemyCurriculumItem[], 'Course');
+      expect(revoke).not.toHaveBeenCalled();
+
+      vi.runAllTimers();
+      expect(revoke).toHaveBeenCalledWith('blob:test');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
