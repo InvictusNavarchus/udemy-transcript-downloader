@@ -187,7 +187,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 ### Entry Points
 
 #### Content Script (`content.ts`)
-- Runs on Udemy course lecture pages (`*://www.udemy.com/course/*/learn/lecture/*`)
+- Runs on all Udemy course pages (`*://www.udemy.com/course/*`), since Udemy moves between them without full page loads; downloads start from the course player (lecture, quiz, etc.)
 - Orchestrates the entire download workflow
 - Implements pause/resume functionality through state management
 - Recoverable: saves state after each lecture for crash resilience

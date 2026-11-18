@@ -5,7 +5,10 @@ import { getCourseId, fetchCurriculum, fetchTranscript, isVideoLecture } from '@
 import { generateZip } from '@/utils/file-generator';
 
 export default defineContentScript({
-  matches: ['*://www.udemy.com/course/*/learn/lecture/*'],
+  // All course pages, not only /learn/lecture/*: Udemy navigates between course pages (landing,
+  // lecture, quiz, practice) without full page loads, and a content script is only injected on
+  // a full load. The course ID is read from the page when Start is clicked, not at injection.
+  matches: ['*://www.udemy.com/course/*'],
   async main() {
     console.log('Udemy Downloader: Content Script Loaded');
 
