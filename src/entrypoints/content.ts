@@ -1,7 +1,7 @@
 import { defineContentScript } from '#imports';
 import { downloadState } from '@/utils/storage';
 import type { MessagePayload } from '@/utils/types';
-import { getCourseId, fetchCurriculum, fetchTranscript } from '@/utils/udemy-api';
+import { getCourseId, fetchCurriculum, fetchTranscript, isVideoLecture } from '@/utils/udemy-api';
 import { generateZip } from '@/utils/file-generator';
 
 export default defineContentScript({
@@ -30,7 +30,7 @@ export default defineContentScript({
           });
 
           const curriculum = await fetchCurriculum(courseId);
-          const totalLectures = curriculum.filter(i => i.type === 'lecture' && i.asset?.asset_type === 'Video').length;
+          const totalLectures = curriculum.filter(isVideoLecture).length;
 
           state = {
             status: 'running',
@@ -69,8 +69,8 @@ export default defineContentScript({
             return;
           }
 
-          // Skip if not a lecture or if already done
-          if (item.type !== 'lecture' || !item.asset || item.isCompleted) {
+          // Skip non-video items (they have no captions and are not in the total) and finished ones
+          if (!isVideoLecture(item) || item.isCompleted) {
             continue;
           }
 

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchCurriculum, fetchTranscript, getCourseId, pickCaption } from '@/utils/udemy-api';
-import type { UdemyCaption } from '@/utils/types';
+import { fetchCurriculum, fetchTranscript, getCourseId, isVideoLecture, pickCaption } from '@/utils/udemy-api';
+import type { UdemyCaption, UdemyCurriculumItem } from '@/utils/types';
 import { vttToMarkdown } from '@/utils/helpers';
 import { fixtureJson, fixtureText, type FixtureSet } from '../helpers';
 
@@ -224,5 +224,30 @@ describe('pickCaption', () => {
 
   it('returns null when no track is in the language', () => {
     expect(pickCaption([track('fr_FR', 'auto')], 'en')).toBeNull();
+  });
+});
+
+describe('isVideoLecture', () => {
+  const item = (type: UdemyCurriculumItem['type'], asset_type?: string): UdemyCurriculumItem => ({
+    _class: type,
+    id: 1,
+    title: 'x',
+    sort_order: 0,
+    type,
+    asset: asset_type ? { id: 1, title: 'x', asset_type } : undefined,
+  });
+
+  it('accepts video lectures', () => {
+    expect(isVideoLecture(item('lecture', 'Video'))).toBe(true);
+  });
+
+  it.each(['Article', 'E-Book', 'File', 'Presentation'])('rejects %s lectures', (assetType) => {
+    expect(isVideoLecture(item('lecture', assetType))).toBe(false);
+  });
+
+  it('rejects lectures without an asset, chapters and quizzes', () => {
+    expect(isVideoLecture(item('lecture'))).toBe(false);
+    expect(isVideoLecture(item('chapter'))).toBe(false);
+    expect(isVideoLecture(item('quiz', 'Video'))).toBe(false);
   });
 });

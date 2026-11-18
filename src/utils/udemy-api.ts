@@ -60,6 +60,14 @@ export const fetchCurriculum = async (courseId: number): Promise<UdemyCurriculum
 };
 
 /**
+ * Whether a curriculum item is a video lecture, the only kind that can have captions.
+ * Articles, e-books, files and other lecture types are skipped by the download loop and
+ * left out of the progress total.
+ */
+export const isVideoLecture = (item: UdemyCurriculumItem): boolean =>
+  item.type === 'lecture' && item.asset?.asset_type === 'Video';
+
+/**
  * Picks the caption track to download for a language.
  * Matches on the language part of `locale_id`, so 'en' accepts en_US, en_GB, en_AU, etc.
  * Among matches, an instructor-written ('manual') track wins over a machine-generated one.
