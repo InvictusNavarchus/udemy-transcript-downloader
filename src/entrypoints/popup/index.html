@@ -42,10 +42,19 @@
       </label>
 
       <div class="actions">
+        <button id="btn-save" class="btn secondary hidden">Save ZIP</button>
         <button id="btn-start" class="btn primary">Start Download</button>
         <button id="btn-resume" class="btn secondary hidden">Resume</button>
         <button id="btn-pause" class="btn warning hidden">Pause</button>
       </div>
+    </section>
+
+    <section id="saved" class="saved hidden">
+      <div class="saved-header">
+        <h3>Saved courses</h3>
+        <span id="storage-total"></span>
+      </div>
+      <ul id="course-list"></ul>
     </section>
   </div>
   <script type="module" src="main.ts"></script>

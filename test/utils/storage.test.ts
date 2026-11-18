@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { storage } from '#imports';
-import { courseState, LEGACY_STATE_KEY, migrateLegacyState } from '@/utils/storage';
+import {
+  courseState,
+  deleteCourseState,
+  LEGACY_STATE_KEY,
+  listCourseStates,
+  migrateLegacyState,
+  preferredLanguage,
+  stateSize,
+} from '@/utils/storage';
 import type { ProcessingState } from '@/utils/types';
 
 const state = (courseId: number, patch: Partial<ProcessingState> = {}): ProcessingState => ({
@@ -62,5 +70,31 @@ describe('migrateLegacyState', () => {
   it('does nothing when there is no old item', async () => {
     await migrateLegacyState();
     expect(await storage.snapshot('local')).toEqual({});
+  });
+});
+
+describe('listCourseStates', () => {
+  it('lists only course states, most recently updated first', async () => {
+    await courseState(1).setValue(state(1, { lastUpdated: 10 }));
+    await courseState(2).setValue(state(2, { lastUpdated: 30 }));
+    await courseState(3).setValue(state(3, { lastUpdated: 20 }));
+    await preferredLanguage.setValue('de');
+    expect((await listCourseStates()).map((s) => s.courseId)).toEqual([2, 3, 1]);
+  });
+
+  it('no longer lists a deleted course', async () => {
+    await courseState(1).setValue(state(1));
+    await courseState(2).setValue(state(2));
+    await deleteCourseState(1);
+    expect((await listCourseStates()).map((s) => s.courseId)).toEqual([2]);
+  });
+});
+
+describe('stateSize', () => {
+  it('counts UTF-8 bytes of the JSON', () => {
+    const ascii = state(1, { courseTitle: 'a' });
+    const accented = state(1, { courseTitle: 'é' });
+    expect(stateSize(ascii)).toBe(JSON.stringify(ascii).length);
+    expect(stateSize(accented)).toBe(stateSize(ascii) + 1);
   });
 });

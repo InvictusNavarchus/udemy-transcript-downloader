@@ -1,6 +1,8 @@
-import { browser } from 'wxt/browser';
-import { courseState, preferredLanguage } from '@/utils/storage';
+import { browser, type Browser } from 'wxt/browser';
+import { deleteCourseState, listCourseStates, preferredLanguage, stateSize } from '@/utils/storage';
 import { isActiveStatus, isInterrupted } from '@/utils/status';
+import { formatBytes } from '@/utils/helpers';
+import { generateZip } from '@/utils/file-generator';
 import type { CaptionLanguage, MessagePayload, PageInfo, ProcessingState } from '@/utils/types';
 
 // Helper for safe element retrieval
@@ -22,13 +24,19 @@ const els = {
   start: getElement<HTMLButtonElement>('btn-start'),
   resume: getElement<HTMLButtonElement>('btn-resume'),
   pause: getElement<HTMLButtonElement>('btn-pause'),
+  saveZip: getElement<HTMLButtonElement>('btn-save'),
   elsewhere: getElement<HTMLElement>('elsewhere'),
   switchTab: getElement<HTMLButtonElement>('btn-switch'),
   languageRow: getElement<HTMLElement>('language-row'),
   language: getElement<HTMLSelectElement>('language'),
+  saved: getElement<HTMLElement>('saved'),
+  total: getElement<HTMLElement>('storage-total'),
+  list: getElement<HTMLUListElement>('course-list'),
 };
 
 const COURSE_TAB_PATTERN = 'https://www.udemy.com/course/*';
+
+type Tab = Browser.tabs.Tab;
 
 /** The course open in the active tab, or why there is none. */
 type ActivePage =
@@ -56,26 +64,40 @@ async function detectActivePage(): Promise<ActivePage> {
   return { kind: 'course', tabId: tab.id, courseId: info.courseId, courseTitle: info.courseTitle };
 }
 
-function show(el: HTMLElement, visible: boolean) {
-  el.classList.toggle('hidden', !visible);
-}
-
-/** The open tab whose content script is downloading the course, if any. */
-async function findLoopTab(courseId: number) {
+/** Which open tab runs a download loop, by course. */
+async function findLoopTabs(): Promise<Map<number, Tab>> {
   const tabs = await browser.tabs.query({ url: COURSE_TAB_PATTERN });
   const answers = await Promise.allSettled(
     tabs.map(async (tab) => {
       const info: PageInfo = await browser.tabs.sendMessage(tab.id!, { action: 'GET_PAGE' } satisfies MessagePayload);
-      return info.runningCourseId === courseId ? tab : null;
+      return [info.runningCourseId, tab] as const;
     })
   );
-  for (const a of answers) if (a.status === 'fulfilled' && a.value) return a.value;
-  return null;
+  const loops = new Map<number, Tab>();
+  for (const a of answers) if (a.status === 'fulfilled' && a.value[0] !== null) loops.set(a.value[0], a.value[1]);
+  return loops;
 }
 
-type LoopTab = Awaited<ReturnType<typeof findLoopTab>>;
+function show(el: HTMLElement, visible: boolean) {
+  el.classList.toggle('hidden', !visible);
+}
 
-function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: ProcessingState | null, loopTab: LoopTab) {
+/** Small element builder for the course list. */
+function h<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props: Partial<HTMLElementTagNameMap[K]> = {},
+  ...children: (Node | string)[]
+): HTMLElementTagNameMap[K] {
+  const el = Object.assign(document.createElement(tag), props);
+  el.append(...children);
+  return el;
+}
+
+const hasTranscripts = (state: ProcessingState) => state.curriculum.some((item) => item.markdownContent);
+
+const saveZip = (state: ProcessingState) => generateZip(state.curriculum, state.courseTitle);
+
+function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: ProcessingState | null, loopTab: Tab | null) {
   show(els.notice, false);
   show(els.course, true);
 
@@ -96,6 +118,7 @@ function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: Proc
   show(els.start, false);
   show(els.resume, false);
   show(els.pause, false);
+  show(els.saveZip, false);
   show(els.languageRow, false);
   if (interrupted) {
     show(els.resume, true);
@@ -105,12 +128,76 @@ function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: Proc
     // While pausing, Resume cancels the pause and the loop carries on.
     show(els.resume, true);
   } else {
+    // A finished course: save its ZIP again from the stored transcripts, or download it again
+    // (e.g. for lectures added since, or in another language).
+    show(els.saveZip, state?.status === 'completed');
     els.start.textContent = state?.status === 'completed' ? 'Download Again' : 'Start Download';
     show(els.start, true);
     show(els.languageRow, true);
     void loadLanguages(page.tabId, state);
   }
 }
+
+// --- Course list ---
+
+/** Delete needs a second click within this time, as a confirmation (Firefox popups cannot show confirm()). */
+const DELETE_CONFIRM_MS = 3000;
+let armedDelete: number | null = null;
+
+function courseRow(state: ProcessingState, loopTab: Tab | null, isActiveCourse: boolean) {
+  const status = isInterrupted(state, loopTab !== null) ? 'interrupted' : state.status;
+  const meta = `${status[0]!.toUpperCase()}${status.slice(1)} · ${state.completedLectures} / ${state.totalLectures} · ${formatBytes(stateSize(state))}`;
+  const actions = h('div', { className: 'row-actions' });
+
+  if (hasTranscripts(state)) {
+    actions.append(h('button', { className: 'link', textContent: 'Save ZIP', onclick: () => saveZip(state) }));
+  }
+  // A running loop would write the state straight back, so it has to be paused first.
+  if (!loopTab) {
+    const armed = armedDelete === state.courseId;
+    actions.append(
+      h('button', {
+        className: armed ? 'link danger' : 'link',
+        textContent: armed ? 'Confirm delete' : 'Delete',
+        onclick: async () => {
+          if (armedDelete === state.courseId) {
+            armedDelete = null;
+            await deleteCourseState(state.courseId);
+            return; // The storage change re-renders.
+          }
+          armedDelete = state.courseId;
+          renderList();
+          setTimeout(() => {
+            if (armedDelete === state.courseId) {
+              armedDelete = null;
+              renderList();
+            }
+          }, DELETE_CONFIRM_MS);
+        },
+      })
+    );
+  }
+
+  return h(
+    'li',
+    { className: isActiveCourse ? 'course-row current' : 'course-row' },
+    h('div', { className: 'row-title', textContent: state.courseTitle, title: state.courseTitle }),
+    h('div', { className: 'row-meta', textContent: isActiveCourse ? `${meta} · this tab` : meta }),
+    actions
+  );
+}
+
+function renderList() {
+  show(els.saved, courses.length > 0);
+  const used = courses.reduce((sum, state) => sum + stateSize(state), 0);
+  els.total.textContent = `${formatBytes(used)} used`;
+  const activeId = page.kind === 'course' ? page.courseId : null;
+  els.list.replaceChildren(
+    ...courses.map((state) => courseRow(state, loops.get(state.courseId) ?? null, state.courseId === activeId))
+  );
+}
+
+// --- Language picker ---
 
 /** Used when the course's languages could not be read: English was the only language before. */
 const FALLBACK_LANGUAGES: CaptionLanguage[] = [{ code: 'en', label: 'English', auto: false }];
@@ -145,6 +232,8 @@ els.language.addEventListener('change', () => preferredLanguage.setValue(els.lan
 const selectedLanguage = (): CaptionLanguage =>
   languages?.find((l) => l.code === els.language.value) ?? FALLBACK_LANGUAGES[0]!;
 
+// --- Actions ---
+
 // The loop may be running in a tab other than the active one, and only that tab's content script
 // can pause it. Tabs without a running loop for the course ignore the message.
 async function pauseEverywhere(courseId: number) {
@@ -164,32 +253,54 @@ async function sendToTab(tabId: number, message: MessagePayload) {
   }
 }
 
+// --- State and refresh ---
+
 const page = await detectActivePage();
-if (page.kind === 'notice') {
-  els.notice.textContent = page.message;
-} else {
-  const item = courseState(page.courseId);
-  let state = await item.getValue();
-  // Asking every course tab is only needed when the status says a loop should exist, and a loop
+let courses: ProcessingState[] = [];
+let loops = new Map<number, Tab>();
+let lastStatuses = '';
+
+async function refresh() {
+  courses = await listCourseStates();
+  // Asking every course tab is only needed when some status says a loop should exist, and a loop
   // starts or stops only together with a status change.
-  const lookUpLoop = async (s: ProcessingState | null) => (s && isActiveStatus(s.status) ? findLoopTab(page.courseId) : null);
-  let loopTab = await lookUpLoop(state);
-  renderCourse(page, state, loopTab);
-  item.watch(async (next) => {
-    const statusChanged = next?.status !== state?.status;
-    // Set before awaiting, so a quicker later update is not overwritten by this older one.
-    state = next;
-    if (statusChanged) loopTab = await lookUpLoop(next);
-    renderCourse(page, state, loopTab);
-  });
+  const statuses = courses.map((c) => `${c.courseId}:${c.status}`).join();
+  if (statuses !== lastStatuses) {
+    lastStatuses = statuses;
+    loops = courses.some((c) => isActiveStatus(c.status)) ? await findLoopTabs() : new Map();
+  }
+  if (page.kind === 'course') {
+    const state = courses.find((c) => c.courseId === page.courseId) ?? null;
+    renderCourse(page, state, loops.get(page.courseId) ?? null);
+  }
+  renderList();
+}
 
-  els.switchTab.addEventListener('click', async () => {
-    if (loopTab?.id === undefined) return;
-    await browser.tabs.update(loopTab.id, { active: true });
-    await browser.windows.update(loopTab.windowId, { focused: true });
-  });
+// Refreshes run one at a time, so an older one cannot finish after a newer one and show stale data.
+let refreshing = Promise.resolve();
+const scheduleRefresh = () => {
+  refreshing = refreshing.then(refresh, refresh);
+};
 
+if (page.kind === 'notice') els.notice.textContent = page.message;
+scheduleRefresh();
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && Object.keys(changes).some((key) => key.startsWith('course:'))) scheduleRefresh();
+});
+
+if (page.kind === 'course') {
+  const current = () => courses.find((c) => c.courseId === page.courseId);
   els.start.addEventListener('click', () => sendToTab(page.tabId, { action: 'START', language: selectedLanguage() }));
   els.resume.addEventListener('click', () => sendToTab(page.tabId, { action: 'RESUME' }));
   els.pause.addEventListener('click', () => pauseEverywhere(page.courseId));
+  els.saveZip.addEventListener('click', () => {
+    const state = current();
+    if (state) void saveZip(state);
+  });
+  els.switchTab.addEventListener('click', async () => {
+    const tab = loops.get(page.courseId);
+    if (tab?.id === undefined) return;
+    await browser.tabs.update(tab.id, { active: true });
+    await browser.windows.update(tab.windowId, { focused: true });
+  });
 }

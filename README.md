@@ -13,6 +13,7 @@ A browser extension that enables you to download complete course transcripts fro
 - **Chapter Organization**: Transcripts are automatically organized into folders by chapter
 - **Pause & Resume**: Pause downloads mid-process and resume exactly where you left off
 - **ZIP Export**: All transcripts are bundled into a single ZIP file for easy distribution
+- **Saved Courses**: The popup lists every course you've downloaded with its status and storage size. Save a course's ZIP again without re-downloading, or delete it to free space
 - **Merged Transcript**: Includes a full course transcript combining all lectures
 - **Real-Time Progress**: Live progress tracking shows exactly which lecture is being processed
 - **Robust Error Handling**: Gracefully handles missing transcripts and API errors
@@ -211,6 +212,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 - Provides UI for user control (Start, Pause, Resume)
 - If the course is downloading in another tab, says so and offers to switch to it
 - If a download's tab was closed or reloaded mid-download, shows it as Interrupted with Resume, instead of Running forever
+- Lists all saved courses (from any tab, Udemy or not) with status, progress and approximate storage size. **Save ZIP** rebuilds the ZIP from stored transcripts in the popup itself; **Delete** asks for a second click and is unavailable while a tab is downloading that course
 - Displays real-time progress, current task, and status badge
 - Uses reactive storage watching for automatic UI updates
 - Sends messages to content script to trigger actions
