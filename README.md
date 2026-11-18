@@ -172,10 +172,10 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 
 ### Technology Stack
 
-- **Language**: TypeScript 5.9+
+- **Language**: TypeScript 7+
 - **Framework**: [WXT](https://wxt.dev/) 0.20.6+ (Web Extension Framework)
 - **Runtime & Package Manager**: Bun 1.3.1+
-- **Compression**: [fflate](https://github.com/101arrowz/fflate) 0.8.2 (ZIP compression)
+- **Compression**: [fflate](https://github.com/101arrowz/fflate) 0.8.3 (ZIP compression)
 - **Testing**: [Vitest](https://vitest.dev/) 5 with happy-dom
 
 </details>
