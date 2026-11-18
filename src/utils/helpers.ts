@@ -70,7 +70,8 @@ const decodeVttEntities = (text: string): string =>
 export const vttToMarkdown = (vttRaw: string): string => {
   if (!vttRaw) return '';
 
-  const blocks = vttRaw.replace(/\r\n?/g, '\n').split(/\n[ \t]*\n/);
+  // Per the WebVTT parser, only an empty line ends a cue; a line of spaces is part of its text.
+  const blocks = vttRaw.replace(/\r\n?/g, '\n').split(/\n{2,}/);
   const texts: string[] = [];
 
   for (const block of blocks) {

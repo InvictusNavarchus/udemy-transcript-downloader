@@ -83,6 +83,10 @@ describe('vttToMarkdown', () => {
     expect(vttToMarkdown(vtt)).toBe('Only this.');
   });
 
+  it('does not end a cue at a line containing only spaces', () => {
+    expect(vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\nBefore\n   \nAfter\n')).toBe('Before After');
+  });
+
   it('joins a cue with several text lines', () => {
     expect(vttToMarkdown('WEBVTT\n\nintro\n00:01.000 --> 00:02.000\nFirst line\nsecond line\n')).toBe(
       'First line second line'
