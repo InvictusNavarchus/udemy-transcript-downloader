@@ -231,9 +231,9 @@ Testing has two layers, because the extension depends on an API it doesn't contr
    Returns asset details including caption URLs
 
 ### Error Handling
-- Gracefully returns null for lectures without transcripts
+- Lectures without English captions are included as "[No Transcript Available]"
+- A failed request (HTTP error, rate limit, network) is not treated as "no transcript": the lecture is marked "[Transcript download failed: …]" in the ZIP, stays unfinished so Resume after a pause retries it, and the final status reports how many lectures failed
 - Continues processing even if individual lecture fails
-- Logs errors for debugging without stopping the entire download
 
 ## 🔒 Permissions
 

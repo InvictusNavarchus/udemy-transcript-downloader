@@ -75,14 +75,16 @@ export const pickCaption = (captions: UdemyCaption[], language: string): UdemyCa
  * Fetches and processes the transcript for a specific lecture.
  * @param courseId - The Udemy course ID
  * @param lectureId - The specific lecture ID
- * @returns Markdown-formatted transcript, or null if unavailable
+ * @returns Markdown-formatted transcript, or null if the lecture has no English captions
+ * @throws {Error} If a request fails (HTTP error or network), so the caller can retry the
+ *   lecture later instead of recording it as having no transcript
  */
 export const fetchTranscript = async (courseId: number, lectureId: number): Promise<string | null> => {
   const url = `https://www.udemy.com/api-2.0/users/me/subscribed-courses/${courseId}/lectures/${lectureId}/?fields%5Blecture%5D=asset&fields%5Basset%5D=captions`;
   
   await randomDelay();
   const response = await fetch(url);
-  if (!response.ok) return null; // Likely no access or not a video
+  if (!response.ok) throw new Error(`Lecture API Error: ${response.status}`);
   
   const data = await response.json();
   const captions = data?.asset?.captions;
@@ -93,12 +95,7 @@ export const fetchTranscript = async (courseId: number, lectureId: number): Prom
   if (!caption?.url) return null;
 
   // Fetch VTT content
-  try {
-    const vttRes = await fetch(caption.url);
-    if (!vttRes.ok) return null;
-    const vttText = await vttRes.text();
-    return vttToMarkdown(vttText);
-  } catch {
-    return null;
-  }
+  const vttRes = await fetch(caption.url);
+  if (!vttRes.ok) throw new Error(`Caption download error: ${vttRes.status}`);
+  return vttToMarkdown(await vttRes.text());
 };

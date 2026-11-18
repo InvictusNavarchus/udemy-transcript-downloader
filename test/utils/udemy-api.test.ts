@@ -136,9 +136,9 @@ describe('fetchTranscript', () => {
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/en_US/');
   });
 
-  it('returns null when the lecture request fails', async () => {
-    const { lecture } = setup('course-a', (urls) => ({ [urls.lecture]: () => text('forbidden', 403) }));
-    expect(await fetchTranscript(COURSE_ID, lecture.id)).toBeNull();
+  it.each([403, 429, 503])('rejects when the lecture request fails with HTTP %i', async (status) => {
+    const { lecture } = setup('course-a', (urls) => ({ [urls.lecture]: () => text('nope', status) }));
+    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow(`Lecture API Error: ${status}`);
   });
 
   // Intended asymmetry with the HTTP-error case above: a thrown error propagates instead of
@@ -166,19 +166,19 @@ describe('fetchTranscript', () => {
     expect(await fetchTranscript(COURSE_ID, lecture.id)).toBeNull();
   });
 
-  it('returns null when the VTT request fails', async () => {
+  it('rejects when the VTT request fails', async () => {
     const { lecture, enUrl, fetchMock } = setup('course-a', (urls) => ({ [urls.vtt]: () => text('gone', 410) }));
-    expect(await fetchTranscript(COURSE_ID, lecture.id)).toBeNull();
+    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow('Caption download error: 410');
     expect(fetchMock).toHaveBeenLastCalledWith(enUrl);
   });
 
-  it('returns null when the VTT request throws', async () => {
+  it('rejects when the VTT request throws', async () => {
     const { lecture, enUrl, fetchMock } = setup('course-a', (urls) => ({
       [urls.vtt]: () => {
         throw new TypeError('NetworkError');
       },
     }));
-    expect(await fetchTranscript(COURSE_ID, lecture.id)).toBeNull();
+    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow('NetworkError');
     expect(fetchMock).toHaveBeenLastCalledWith(enUrl);
   });
 

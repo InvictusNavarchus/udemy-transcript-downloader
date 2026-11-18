@@ -59,6 +59,7 @@ export default defineContentScript({
         }
         
         const curriculum = [...state.curriculum];
+        let failedLectures = 0;
 
         for (const item of curriculum) {
           // 1. Check Pause State
@@ -101,7 +102,10 @@ export default defineContentScript({
 
           } catch (err) {
             console.error(err);
-            // Log error but don't stop - append to logs for visibility
+            // Leave the lecture incomplete so Resume (after a pause) retries it, and mark the gap
+            // in the ZIP rather than leaving the lecture out silently.
+            failedLectures++;
+            item.markdownContent = `> [Transcript download failed: ${err instanceof Error ? err.message : err}]`;
             const latestState = await downloadState.getValue();
             await downloadState.setValue({
               ...latestState,
@@ -124,7 +128,9 @@ export default defineContentScript({
         await downloadState.setValue({ 
           ...completedState, 
           status: 'completed', 
-          currentTask: 'Download Finished' 
+          currentTask: failedLectures > 0
+            ? `Download Finished. ${failedLectures} lecture(s) failed and are marked in the ZIP.`
+            : 'Download Finished'
         });
 
       } catch (e: any) {
