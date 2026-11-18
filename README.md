@@ -91,7 +91,7 @@ The extension icon should now appear in your browser's toolbar.
 ### Prerequisites
 
 - [Bun](https://bun.sh/) - JavaScript runtime and package manager
-- Node.js 22+ (if not using Bun)
+- Node.js `^22.12`, `^24`, or `>=26`. Required even with Bun: `bun run` starts the WXT and Vitest CLIs with Node. Vitest 5 sets this range and doesn't support Node 23 or 25
 - Git
 
 ### Setup
@@ -134,6 +134,11 @@ src/
 │   ├── storage.ts              # Persistent state management
 │   └── helpers.ts              # Utility functions
 └── assets/                     # Extension assets (icons, etc.)
+scripts/
+└── smoke-test.js               # Console check against the live Udemy API
+test/
+├── fixtures/                   # Trimmed snapshots of real Udemy responses
+└── utils/                      # Vitest tests for src/utils
 ```
 
 ### Available Commands
@@ -147,6 +152,8 @@ src/
 | `bun run zip` | Create distributable ZIP (Chrome/Edge) |
 | `bun run zip:firefox` | Create distributable ZIP (Firefox) |
 | `bun run compile` | Type-check TypeScript (no emit) |
+| `bun run test` | Run the Vitest suite once |
+| `bun run test:watch` | Run Vitest in watch mode |
 
 ### Type Checking
 
@@ -156,12 +163,20 @@ Always check for type errors when making changes:
 bun run compile
 ```
 
+### Testing
+
+Testing has two layers, because the extension depends on an API it doesn't control:
+
+- **Offline tests (`bun run test`)**: Vitest runs the code in `src/utils` against fixtures in `test/fixtures/`, which are dated snapshots of real Udemy responses. They check that, given those responses, the code produces the right output. Run them on every change. Known bugs are marked `it.fails`. When you fix one, that test starts failing, which tells you to turn it into a normal test.
+- **Live smoke test (`scripts/smoke-test.js`)**: checks whether Udemy still returns what the extension expects. Open any lecture page of a course you're enrolled in, paste the script into the DevTools console, and read the pass/fail table. Run it before a release or when downloads break. If Udemy has changed a format, run `copy(__udemyFixtures)` to capture the new responses and add them as a new fixture set (see `test/fixtures/README.md`).
+
 ### Technology Stack
 
 - **Language**: TypeScript 5.9+
 - **Framework**: [WXT](https://wxt.dev/) 0.20.6+ (Web Extension Framework)
 - **Runtime & Package Manager**: Bun 1.3.1+
 - **Compression**: [fflate](https://github.com/101arrowz/fflate) 0.8.2 (ZIP compression)
+- **Testing**: [Vitest](https://vitest.dev/) 5 with happy-dom
 
 </details>
 
@@ -276,7 +291,7 @@ Contributions are welcome! Feel free to:
 
 1. Create a feature branch (`git checkout -b feature/amazing-feature`)
 2. Make your changes and ensure type safety
-3. Run type checking: `bun run compile`
+3. Run type checking and tests: `bun run compile && bun run test`
 4. Commit with conventional commit messages: `feat:`, `fix:`, `docs:`, etc.
 5. Push and create a Pull Request
 
