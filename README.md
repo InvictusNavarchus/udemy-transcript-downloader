@@ -252,6 +252,7 @@ The extension requests minimal permissions:
 | Permission | Purpose |
 |-----------|---------|
 | `storage` | Persist download state locally |
+| `unlimitedStorage` | Keep the transcripts of several courses. Chrome otherwise caps extension storage at 10 MB, and a large course alone can take a few MB |
 | `activeTab` | Detect active Udemy page |
 | `host_permissions: https://www.udemy.com/*` | API access to Udemy services |
 
