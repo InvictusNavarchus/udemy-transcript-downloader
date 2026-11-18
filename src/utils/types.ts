@@ -62,3 +62,5 @@ export interface PageInfo {
   /** The course this tab is downloading right now, if any. */
   runningCourseId: number | null;
 }
+/** Messages from a content script to the background script. */
+export type BackgroundMessage = { action: 'SET_BADGE'; text: string; color: string };

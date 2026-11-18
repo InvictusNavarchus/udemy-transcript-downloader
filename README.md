@@ -15,7 +15,7 @@ A browser extension that enables you to download complete course transcripts fro
 - **ZIP Export**: All transcripts are bundled into a single ZIP file for easy distribution
 - **Saved Courses**: The popup lists every course you've downloaded with its status and storage size. Save a course's ZIP again without re-downloading, or delete it to free space
 - **Merged Transcript**: Includes a full course transcript combining all lectures
-- **Real-Time Progress**: Live progress tracking shows exactly which lecture is being processed
+- **Real-Time Progress**: Live progress tracking shows exactly which lecture is being processed, and the toolbar icon of a downloading tab shows its percentage (grey while paused, ✓ when finished, ! on error)
 - **Robust Error Handling**: Gracefully handles missing transcripts and API errors
 - **Cross-Browser Support**: Works on Chrome/Edge and Firefox
 - **Lightweight & Efficient**: Random request delays prevent API rate limiting
@@ -126,7 +126,7 @@ The extension icon should now appear in your browser's toolbar.
 ```
 src/
 ├── entrypoints/
-│   ├── background.ts           # Migrates state saved by older versions
+│   ├── background.ts           # Toolbar badge; migrates state saved by older versions
 │   ├── content.ts              # Main content script - orchestrates downloads
 │   └── popup/
 │       ├── index.html          # Popup UI
@@ -206,6 +206,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 
 #### Background Script (`background.ts`)
 - On install or update, moves a download saved by older versions (one shared state) into its course's state
+- Sets the toolbar badge for a downloading tab, since content scripts cannot use the action API
 
 #### Popup Script (`main.ts`)
 - Shows the course open in the active tab, or explains what to open (a non-Udemy tab, the course landing page, or a page that needs a reload)

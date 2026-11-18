@@ -1,6 +1,6 @@
 import { defineContentScript } from '#imports';
 import { courseState } from '@/utils/storage';
-import type { CaptionLanguage, MessagePayload, PageInfo, ProcessingState } from '@/utils/types';
+import type { BackgroundMessage, CaptionLanguage, MessagePayload, PageInfo, ProcessingState } from '@/utils/types';
 import {
   getCourseId,
   fetchCaptionLanguages,
@@ -11,7 +11,7 @@ import {
   transcriptMarkdown,
 } from '@/utils/udemy-api';
 import { generateZip } from '@/utils/file-generator';
-import { failedLectures } from '@/utils/status';
+import { badgeFor, failedLectures } from '@/utils/status';
 
 export default defineContentScript({
   // All course pages, not only /learn/lecture/*: Udemy navigates between course pages (landing,
@@ -90,9 +90,19 @@ export default defineContentScript({
       };
       // The loop keeps the authoritative state in memory and writes it whole; nothing else
       // writes it while the loop runs, so there is no need to re-read before each save.
+      let badgeKey = '';
       const update = async (patch: Partial<ProcessingState>) => {
         state = { ...state, ...patch, lastUpdated: Date.now() };
         await item.setValue(state);
+        // Progress on the toolbar icon, sent only when it changes (most saves change only the task).
+        const badge = badgeFor(state);
+        if (`${badge.text}|${badge.color}` !== badgeKey) {
+          badgeKey = `${badge.text}|${badge.color}`;
+          const message: BackgroundMessage = { action: 'SET_BADGE', ...badge };
+          browser.runtime.sendMessage(message).catch(() => {
+            // The badge is cosmetic; a missing background (e.g. mid-update) must not stop the download.
+          });
+        }
       };
       loopUpdate = update;
 
