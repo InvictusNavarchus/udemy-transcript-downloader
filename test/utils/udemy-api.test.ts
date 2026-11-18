@@ -132,6 +132,19 @@ describe('fetchTranscript', () => {
     expect(await fetchTranscript(COURSE_ID, lecture.id)).toBeNull();
   });
 
+  // Intended asymmetry with the HTTP-error case above: a thrown error propagates instead of
+  // returning null. content.ts catches it per lecture, logs it and leaves `isCompleted` unset, so
+  // the lecture is retried on Resume. Returning null would permanently record a transient network
+  // failure as "[No Transcript Available]".
+  it('rejects when the lecture request throws', async () => {
+    const { lecture } = setup('course-a', (urls) => ({
+      [urls.lecture]: () => {
+        throw new TypeError('NetworkError');
+      },
+    }));
+    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow('NetworkError');
+  });
+
   it('returns null when the lecture has no captions', async () => {
     stubFetch({ [lectureUrl(COURSE_ID, 1)]: () => json({ asset: { captions: [] } }) });
     expect(await fetchTranscript(COURSE_ID, 1)).toBeNull();
