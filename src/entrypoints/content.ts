@@ -14,7 +14,30 @@ export default defineContentScript({
 
     // --- Orchestration Logic ---
 
+    // Only one download loop may run in this tab. Pause does not stop the loop immediately: it
+    // finishes the current lecture and stops at its next status check. A Resume (or Start) that
+    // arrives before then must not start a second loop, which would process lectures twice and
+    // double-count progress.
+    let loopRunning = false;
+
     const processDownload = async (resume = false) => {
+      if (loopRunning) {
+        if (resume) {
+          // The live loop sees 'running' again at its next check and simply carries on.
+          const s = await downloadState.getValue();
+          await downloadState.setValue({ ...s, status: 'running', currentTask: 'Resuming...' });
+        }
+        return;
+      }
+      loopRunning = true;
+      try {
+        await runDownload(resume);
+      } finally {
+        loopRunning = false;
+      }
+    };
+
+    const runDownload = async (resume: boolean) => {
       try {
         let state = await downloadState.getValue();
         
