@@ -23,11 +23,20 @@ export interface UdemyCaption {
 }
 
 /** Download state of one course. A course that was never started has no state at all. */
+/** A caption language offered for download, merged across locales (en_US + en_GB -> en). */
+export interface CaptionLanguage {
+  code: string; // Lowercase ISO 639-1, the language part of locale_id, e.g. 'en'
+  label: string; // e.g. 'English'
+  auto: boolean; // Only machine-generated tracks exist for it
+}
+
 export interface ProcessingState {
   // 'pausing': Pause was clicked; the loop finishes its current lecture, then becomes 'paused'.
   status: 'running' | 'pausing' | 'paused' | 'completed' | 'error';
   courseId: number;
   courseTitle: string;
+  language: string; // CaptionLanguage.code chosen at Start; Resume keeps it
+  languageLabel: string;
   totalLectures: number;
   completedLectures: number;
   currentTask: string;
@@ -39,7 +48,8 @@ export interface ProcessingState {
 /** Messages from the popup to a course tab's content script. */
 export type MessagePayload =
   | { action: 'GET_PAGE' }
-  | { action: 'START' }
+  | { action: 'GET_LANGUAGES' }
+  | { action: 'START'; language: CaptionLanguage }
   | { action: 'RESUME' }
   | { action: 'PAUSE'; courseId: number };
 

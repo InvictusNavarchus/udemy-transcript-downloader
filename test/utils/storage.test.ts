@@ -8,6 +8,8 @@ const state = (courseId: number, patch: Partial<ProcessingState> = {}): Processi
   status: 'paused',
   courseId,
   courseTitle: `Course ${courseId}`,
+  language: 'en',
+  languageLabel: 'English',
   totalLectures: 10,
   completedLectures: 4,
   currentTask: 'Paused by user.',
@@ -35,8 +37,9 @@ describe('courseState', () => {
 });
 
 describe('migrateLegacyState', () => {
-  it('moves a started download into its course item and deletes the old item', async () => {
-    await storage.setItem(LEGACY_STATE_KEY, state(7));
+  it('moves a started download into its course item as English and deletes the old item', async () => {
+    const { language, languageLabel, ...legacy } = state(7);
+    await storage.setItem(LEGACY_STATE_KEY, legacy);
     await migrateLegacyState();
     expect(await courseState(7).getValue()).toEqual(state(7));
     expect(await storage.getItem(LEGACY_STATE_KEY)).toBeNull();

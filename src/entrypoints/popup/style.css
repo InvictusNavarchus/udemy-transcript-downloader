@@ -109,3 +109,23 @@ h2 { font-size: 14px; margin: 0 0 8px 0; white-space: nowrap; overflow: hidden; 
   cursor: pointer;
   font: inherit;
 }
+
+.language {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #6a6f73;
+  margin-bottom: 12px;
+}
+
+.language select {
+  font: inherit;
+  color: var(--text);
+  padding: 4px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

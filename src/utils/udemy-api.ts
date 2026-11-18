@@ -1,4 +1,4 @@
-import type { UdemyCaption, UdemyCurriculumItem } from './types';
+import type { CaptionLanguage, UdemyCaption, UdemyCurriculumItem } from './types';
 import { randomDelay, vttToMarkdown } from './helpers';
 
 /**
@@ -81,6 +81,9 @@ export const fetchCurriculum = async (courseId: number): Promise<UdemyCurriculum
 export const isVideoLecture = (item: UdemyCurriculumItem): boolean =>
   item.type === 'lecture' && item.asset?.asset_type === 'Video';
 
+/** The language part of a track's locale_id, e.g. 'en' for en_GB. */
+const languageOf = (caption: UdemyCaption): string => caption.locale_id?.split('_')[0]?.toLowerCase() ?? '';
+
 /**
  * Picks the caption track to download for a language.
  * Matches on the language part of `locale_id`, so 'en' accepts en_US, en_GB, en_AU, etc.
@@ -89,35 +92,104 @@ export const isVideoLecture = (item: UdemyCurriculumItem): boolean =>
  * @returns The chosen track, or null if no track with a URL is in that language
  */
 export const pickCaption = (captions: UdemyCaption[], language: string): UdemyCaption | null => {
-  const matches = captions.filter((c) => c.url && c.locale_id?.split('_')[0]?.toLowerCase() === language);
+  const matches = captions.filter((c) => c.url && languageOf(c) === language);
   return matches.find((c) => c.source === 'manual') ?? matches[0] ?? null;
 };
+
+/** Display name of a track's language: its label without Udemy's " [Auto]" marker. */
+const languageLabel = (caption: UdemyCaption): string => {
+  const label = caption.video_label?.replace(/\s*\[auto\]\s*$/i, '').trim();
+  if (label) return label;
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'language' }).of(languageOf(caption)) ?? languageOf(caption);
+  } catch {
+    return languageOf(caption);
+  }
+};
+
+/**
+ * The languages a lecture's captions are available in, one entry per language (locales merged,
+ * as pickCaption does), sorted by label. Tracks without a URL cannot be downloaded and are left out.
+ */
+export const listCaptionLanguages = (captions: UdemyCaption[]): CaptionLanguage[] => {
+  const byCode = new Map<string, CaptionLanguage>();
+  for (const c of captions) {
+    const code = languageOf(c);
+    if (!c.url || !code) continue;
+    const manual = c.source === 'manual';
+    const known = byCode.get(code);
+    // Prefer the label of a manual track, the one pickCaption downloads.
+    if (!known || (manual && known.auto)) byCode.set(code, { code, label: languageLabel(c), auto: !manual });
+  }
+  return [...byCode.values()].sort((a, b) => a.label.localeCompare(b.label));
+};
+
+/** Fetches a lecture's caption tracks; an empty list when it has none. */
+const fetchLectureCaptions = async (courseId: number, lectureId: number): Promise<UdemyCaption[]> => {
+  const url = `https://www.udemy.com/api-2.0/users/me/subscribed-courses/${courseId}/lectures/${lectureId}/?fields%5Blecture%5D=asset&fields%5Basset%5D=captions`;
+  await randomDelay();
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Lecture API Error: ${response.status}`);
+  const captions = (await response.json())?.asset?.captions;
+  return Array.isArray(captions) ? captions : [];
+};
+
+/** Video lectures checked for languages; the first one may lack captions (e.g. a short intro). */
+const LANGUAGE_PROBE_LECTURES = 3;
+
+/**
+ * The caption languages of a course, read from its first video lecture that has captions.
+ * Instructors usually caption every lecture alike, but a lecture can still lack a language
+ * listed here; the download marks such lectures (see transcriptMarkdown).
+ */
+export const fetchCaptionLanguages = async (courseId: number): Promise<CaptionLanguage[]> => {
+  const lectures = (await fetchCurriculum(courseId)).filter(isVideoLecture).slice(0, LANGUAGE_PROBE_LECTURES);
+  for (const lecture of lectures) {
+    const languages = listCaptionLanguages(await fetchLectureCaptions(courseId, lecture.id));
+    if (languages.length > 0) return languages;
+  }
+  return [];
+};
+
+/** What a lecture has for the chosen language. */
+export type TranscriptResult =
+  | { kind: 'transcript'; markdown: string }
+  | { kind: 'no-captions' }
+  | { kind: 'language-missing'; available: string[] };
 
 /**
  * Fetches and processes the transcript for a specific lecture.
  * @param courseId - The Udemy course ID
  * @param lectureId - The specific lecture ID
- * @returns Markdown-formatted transcript, or null if the lecture has no English captions
+ * @param language - Lowercase ISO 639-1 code, e.g. 'en'
+ * @returns The transcript, or why there is none: no captions at all, or none in `language`
+ *   (with the languages it does have, so the user knows a different language would work)
  * @throws {Error} If a request fails (HTTP error or network), so the caller can retry the
  *   lecture later instead of recording it as having no transcript
  */
-export const fetchTranscript = async (courseId: number, lectureId: number): Promise<string | null> => {
-  const url = `https://www.udemy.com/api-2.0/users/me/subscribed-courses/${courseId}/lectures/${lectureId}/?fields%5Blecture%5D=asset&fields%5Basset%5D=captions`;
-  
-  await randomDelay();
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Lecture API Error: ${response.status}`);
-  
-  const data = await response.json();
-  const captions = data?.asset?.captions;
-
-  if (!captions || !Array.isArray(captions)) return null;
-
-  const caption = pickCaption(captions, 'en');
-  if (!caption?.url) return null;
+export const fetchTranscript = async (courseId: number, lectureId: number, language: string): Promise<TranscriptResult> => {
+  const captions = await fetchLectureCaptions(courseId, lectureId);
+  const caption = pickCaption(captions, language);
+  if (!caption?.url) {
+    const available = listCaptionLanguages(captions).map((l) => l.label);
+    return available.length > 0 ? { kind: 'language-missing', available } : { kind: 'no-captions' };
+  }
 
   // Fetch VTT content
   const vttRes = await fetch(caption.url);
   if (!vttRes.ok) throw new Error(`Caption download error: ${vttRes.status}`);
-  return vttToMarkdown(await vttRes.text());
+  return { kind: 'transcript', markdown: vttToMarkdown(await vttRes.text()) };
+};
+
+/** The lecture file's content: the transcript, or a note saying why there is none. */
+export const transcriptMarkdown = (result: TranscriptResult, languageLabel: string): string => {
+  switch (result.kind) {
+    case 'transcript':
+      // An empty caption file still counts as no transcript.
+      return result.markdown || '> [No Transcript Available]';
+    case 'no-captions':
+      return '> [No Transcript Available]';
+    case 'language-missing':
+      return `> [No ${languageLabel} transcript. Available: ${result.available.join(', ')}]`;
+  }
 };

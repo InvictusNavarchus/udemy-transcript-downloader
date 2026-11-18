@@ -9,6 +9,7 @@ A browser extension that enables you to download complete course transcripts fro
 ## 🎯 Features
 
 - **One-Click Download**: Start downloading all transcripts from a course with a single click
+- **Language Choice**: Pick any caption language the course offers; English is preselected the first time, then your last choice
 - **Chapter Organization**: Transcripts are automatically organized into folders by chapter
 - **Pause & Resume**: Pause downloads mid-process and resume exactly where you left off
 - **ZIP Export**: All transcripts are bundled into a single ZIP file for easy distribution
@@ -239,7 +240,8 @@ Testing has two layers, because the extension depends on an API it doesn't contr
    Returns asset details including caption URLs
 
 ### Error Handling
-- Lectures without English captions are included as "[No Transcript Available]"
+- Lectures without any captions are included as "[No Transcript Available]"
+- Lectures without captions in the chosen language say which languages they do have, e.g. "[No German transcript. Available: English, Spanish]", so you know a download in another language would fill the gap
 - A failed request (HTTP error, rate limit, network) is not treated as "no transcript": the lecture is marked "[Transcript download failed: …]" in the ZIP, stays unfinished so Resume after a pause retries it, and the final status reports how many lectures failed
 - Continues processing even if individual lecture fails
 
@@ -286,7 +288,7 @@ CourseTitle_Transcripts.zip
 ## ⚠️ Limitations
 
 - **Enrollment Required**: Only works for courses you're enrolled in
-- **English Transcripts Only**: Currently extracts English captions only (any English locale, such as US or UK). Instructor-written captions are preferred over auto-generated ones
+- **One Language per Download**: The language list comes from the course's first lecture with captions, so a few lectures may lack the chosen language. Locales are merged (US and UK English are both "English"), and instructor-written captions are preferred over auto-generated ones
 - **Video Lectures Only**: Skips non-video content (quizzes, documents)
 - **API Dependent**: Requires Udemy API availability (can be shutdown by Udemy at any time)
 - **Rate Limiting**: Random delays to prevent API throttling may increase download time

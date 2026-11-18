@@ -1,7 +1,7 @@
 import { browser } from 'wxt/browser';
-import { courseState } from '@/utils/storage';
+import { courseState, preferredLanguage } from '@/utils/storage';
 import { isActiveStatus, isInterrupted } from '@/utils/status';
-import type { MessagePayload, PageInfo, ProcessingState } from '@/utils/types';
+import type { CaptionLanguage, MessagePayload, PageInfo, ProcessingState } from '@/utils/types';
 
 // Helper for safe element retrieval
 function getElement<T extends HTMLElement>(id: string): T {
@@ -24,6 +24,8 @@ const els = {
   pause: getElement<HTMLButtonElement>('btn-pause'),
   elsewhere: getElement<HTMLElement>('elsewhere'),
   switchTab: getElement<HTMLButtonElement>('btn-switch'),
+  languageRow: getElement<HTMLElement>('language-row'),
+  language: getElement<HTMLSelectElement>('language'),
 };
 
 const COURSE_TAB_PATTERN = 'https://www.udemy.com/course/*';
@@ -94,6 +96,7 @@ function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: Proc
   show(els.start, false);
   show(els.resume, false);
   show(els.pause, false);
+  show(els.languageRow, false);
   if (interrupted) {
     show(els.resume, true);
   } else if (state?.status === 'running') {
@@ -104,8 +107,43 @@ function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: Proc
   } else {
     els.start.textContent = state?.status === 'completed' ? 'Download Again' : 'Start Download';
     show(els.start, true);
+    show(els.languageRow, true);
+    void loadLanguages(page.tabId, state);
   }
 }
+
+/** Used when the course's languages could not be read: English was the only language before. */
+const FALLBACK_LANGUAGES: CaptionLanguage[] = [{ code: 'en', label: 'English', auto: false }];
+let languages: CaptionLanguage[] | null = null;
+let languagesRequested = false;
+
+/** Fills the language picker once; Start waits for it so it always sends a listed language. */
+async function loadLanguages(tabId: number, state: ProcessingState | null) {
+  if (languagesRequested) return;
+  languagesRequested = true;
+  els.start.disabled = true;
+  let found: CaptionLanguage[] = [];
+  try {
+    found = await browser.tabs.sendMessage(tabId, { action: 'GET_LANGUAGES' } satisfies MessagePayload);
+  } catch {
+    // The content script went away; the fallback still allows a Start once the page is back.
+  }
+  languages = found.length > 0 ? found : FALLBACK_LANGUAGES;
+
+  // A course downloaded before keeps its language; otherwise the language chosen last time.
+  const wanted = [state?.language, await preferredLanguage.getValue(), 'en'];
+  const selected = wanted.find((code) => languages!.some((l) => l.code === code)) ?? languages[0]!.code;
+  els.language.replaceChildren(
+    ...languages.map((l) => new Option(l.auto ? `${l.label} (auto-generated)` : l.label, l.code, false, l.code === selected))
+  );
+  els.language.disabled = false;
+  els.start.disabled = false;
+}
+
+els.language.addEventListener('change', () => preferredLanguage.setValue(els.language.value));
+
+const selectedLanguage = (): CaptionLanguage =>
+  languages?.find((l) => l.code === els.language.value) ?? FALLBACK_LANGUAGES[0]!;
 
 // The loop may be running in a tab other than the active one, and only that tab's content script
 // can pause it. Tabs without a running loop for the course ignore the message.
@@ -151,7 +189,7 @@ if (page.kind === 'notice') {
     await browser.windows.update(loopTab.windowId, { focused: true });
   });
 
-  els.start.addEventListener('click', () => sendToTab(page.tabId, { action: 'START' }));
+  els.start.addEventListener('click', () => sendToTab(page.tabId, { action: 'START', language: selectedLanguage() }));
   els.resume.addEventListener('click', () => sendToTab(page.tabId, { action: 'RESUME' }));
   els.pause.addEventListener('click', () => pauseEverywhere(page.courseId));
 }
