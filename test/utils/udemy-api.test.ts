@@ -1,6 +1,13 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchCurriculum, fetchTranscript, getCourseId, isVideoLecture, pickCaption } from '@/utils/udemy-api';
+import {
+  courseTitleFromDocumentTitle,
+  fetchCurriculum,
+  fetchTranscript,
+  getCourseId,
+  isVideoLecture,
+  pickCaption,
+} from '@/utils/udemy-api';
 import type { UdemyCaption, UdemyCurriculumItem } from '@/utils/types';
 import { vttToMarkdown } from '@/utils/helpers';
 import { fixtureJson, fixtureText, type FixtureSet } from '../helpers';
@@ -249,5 +256,17 @@ describe('isVideoLecture', () => {
     expect(isVideoLecture(item('lecture'))).toBe(false);
     expect(isVideoLecture(item('chapter'))).toBe(false);
     expect(isVideoLecture(item('quiz', 'Video'))).toBe(false);
+  });
+});
+
+describe('courseTitleFromDocumentTitle', () => {
+  it.each([
+    ['Course: Touch Typing Mastery | Udemy', 'Touch Typing Mastery'],
+    ['Course: Python: The Complete Guide | Udemy', 'Python: The Complete Guide'],
+    ['Touch Typing Mastery | Udemy', 'Touch Typing Mastery'],
+    ['Coursework Basics | Udemy', 'Coursework Basics'],
+    ['', ''],
+  ])('%j -> %j', (input, expected) => {
+    expect(courseTitleFromDocumentTitle(input)).toBe(expected);
   });
 });

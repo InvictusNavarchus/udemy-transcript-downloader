@@ -1,7 +1,7 @@
 import { defineContentScript } from '#imports';
 import { downloadState } from '@/utils/storage';
 import type { MessagePayload } from '@/utils/types';
-import { getCourseId, fetchCurriculum, fetchTranscript, isVideoLecture } from '@/utils/udemy-api';
+import { getCourseId, fetchCurriculum, fetchTranscript, isVideoLecture, courseTitleFromDocumentTitle } from '@/utils/udemy-api';
 import { generateZip } from '@/utils/file-generator';
 
 export default defineContentScript({
@@ -44,7 +44,7 @@ export default defineContentScript({
         // --- Initialization Phase ---
         if (!resume || state.status === 'completed' || state.status === 'error') {
           const courseId = getCourseId();
-          const courseTitle = (document.title.split('|')[0] ?? '').trim();
+          const courseTitle = courseTitleFromDocumentTitle(document.title);
 
           await downloadState.setValue({
             ...state,

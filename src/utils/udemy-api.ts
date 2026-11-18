@@ -29,6 +29,14 @@ export const getCourseId = (): number => {
 };
 
 /**
+ * Extracts the course title from the course player's tab title, e.g.
+ * "Course: Touch Typing Mastery | Udemy" -> "Touch Typing Mastery".
+ * Only the English "Course: " label is removed; other UI languages may use a translated label.
+ */
+export const courseTitleFromDocumentTitle = (documentTitle: string): string =>
+  (documentTitle.split('|')[0] ?? '').trim().replace(/^Course:\s*/, '');
+
+/**
  * Fetches the complete course curriculum from Udemy API.
  * @param courseId - The Udemy course ID
  * @returns Array of curriculum items (chapters, lectures, quizzes)
