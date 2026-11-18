@@ -7,7 +7,11 @@ export const randomDelay = async () => {
 };
 
 export const sanitizeFileName = (name: string): string => {
-  const sanitized = name.replace(/[^a-z0-9\s-_]/gi, '').trim().substring(0, 100);
+  const sanitized = name
+    .replace(/[\p{Pd}\u2212]/gu, '-') // em/en dashes, minus sign, etc. read as a hyphen; keep one
+    .replace(/[^a-z0-9\s-_]/gi, '')
+    .trim()
+    .substring(0, 100);
   return sanitized || 'untitled';
 };
 

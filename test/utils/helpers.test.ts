@@ -102,9 +102,7 @@ describe('sanitizeFileName', () => {
     expect(sanitizeFileName('a'.repeat(150))).toHaveLength(100);
   });
 
-  // Known bug: dash-like characters are deleted instead of becoming a hyphen,
-  // e.g. "Typing Marathon — keeping going" -> "Typing Marathon  keeping going".
-  it.fails.each([
+  it.each([
     ['em dash', 'Typing Marathon — keeping going', 'Typing Marathon - keeping going'],
     ['en dash', 'Pages 1–10', 'Pages 1-10'],
     ['minus sign', 'Score −5', 'Score -5'],
