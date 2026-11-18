@@ -63,7 +63,7 @@ function render(state: ProcessingState) {
 }
 
 // Button Actions
-async function send(action: 'START' | 'RESUME' | 'PAUSE') {
+async function send(action: 'START' | 'RESUME') {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   
   // Verify we're on a Udemy course page
@@ -85,4 +85,13 @@ async function send(action: 'START' | 'RESUME' | 'PAUSE') {
 
 els.start.addEventListener('click', () => send('START'));
 els.resume.addEventListener('click', () => send('RESUME'));
-els.pause.addEventListener('click', () => send('PAUSE'));
+// The loop may be running in a tab other than the active one, and only that tab's content script
+// can pause it. Tabs without a running loop ignore the message.
+async function pauseEverywhere() {
+  const tabs = await browser.tabs.query({ url: 'https://www.udemy.com/course/*' });
+  await Promise.allSettled(
+    tabs.filter((t) => t.id !== undefined).map((t) => browser.tabs.sendMessage(t.id!, { action: 'PAUSE' }))
+  );
+}
+
+els.pause.addEventListener('click', () => pauseEverywhere());
