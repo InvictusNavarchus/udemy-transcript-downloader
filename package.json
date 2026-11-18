@@ -12,11 +12,15 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox --mv3",
     "compile": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
     "@wxt-dev/auto-icons": "^1.1.0",
+    "happy-dom": "^21.0.4",
     "typescript": "^5.9.3",
+    "vitest": "^5.1.0",
     "wxt": "^0.20.6"
   },
   "dependencies": {
