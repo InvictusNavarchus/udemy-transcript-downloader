@@ -35,7 +35,7 @@ export const getCourseId = (): number => {
  */
 export const courseTitleFromDocumentTitle = (documentTitle: string): string =>
   // Remove only Udemy's own " | Udemy" suffix: a course name may itself contain "|".
-  documentTitle.replace(/\s*\|\s*Udemy\s*$/, '').trim().replace(/^Course:\s*/, '');
+  documentTitle.replace(/\s*\|\s*Udemy\s*$/, '').trim().replace(/^Course:\s+/, '');
 
 /**
  * Fetches the complete course curriculum from Udemy API.
