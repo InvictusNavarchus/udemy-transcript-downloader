@@ -117,6 +117,8 @@ The extension icon should now appear in your browser's toolbar.
    bun run dev:firefox
    ```
 
+   The dev server doesn't open a browser. Load the unpacked extension yourself from `.output/chrome-mv3-dev` or `.output/firefox-mv3-dev`. WXT only launches a browser when the optional `web-ext` package is installed.
+
 ### Project Structure
 
 ```
@@ -173,7 +175,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 ### Technology Stack
 
 - **Language**: TypeScript 7+
-- **Framework**: [WXT](https://wxt.dev/) 0.20.6+ (Web Extension Framework)
+- **Framework**: [WXT](https://wxt.dev/) 0.21+ (Web Extension Framework) on [Vite](https://vite.dev/) 8
 - **Runtime & Package Manager**: Bun 1.3.1+
 - **Compression**: [fflate](https://github.com/101arrowz/fflate) 0.8.3 (ZIP compression)
 - **Testing**: [Vitest](https://vitest.dev/) 5 with happy-dom
