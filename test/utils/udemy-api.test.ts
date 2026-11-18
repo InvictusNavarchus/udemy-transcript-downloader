@@ -102,6 +102,15 @@ describe('fetchCurriculum', () => {
     expect((await fetchCurriculum(COURSE_ID)).map((i) => i.title)).toEqual(['Page 1', 'Page 2']);
   });
 
+  it('throws instead of looping when `next` repeats a page', async () => {
+    const fetchMock = stubFetch({
+      [curriculumUrl(COURSE_ID)]: () =>
+        json({ next: curriculumUrl(COURSE_ID), results: [{ _class: 'chapter', id: 1, title: 'Page 1' }] }),
+    });
+    await expect(fetchCurriculum(COURSE_ID)).rejects.toThrow('Curriculum pagination loops back');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('throws when a later page fails', async () => {
     const page2Url = 'https://www.udemy.com/api-2.0/courses/4242/subscriber-curriculum-items/?page=2';
     stubFetch({

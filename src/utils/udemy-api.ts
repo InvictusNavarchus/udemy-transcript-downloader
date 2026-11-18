@@ -46,8 +46,13 @@ export const fetchCurriculum = async (courseId: number): Promise<UdemyCurriculum
   // Pages hold up to 1000 items; longer courses continue at the absolute URL in `next`.
   let url: string | null = `https://www.udemy.com/api-2.0/courses/${courseId}/subscriber-curriculum-items/?curriculum_types=chapter%2Clecture%2Cquiz&page_size=1000&fields%5Blecture%5D=title%2Casset&fields%5Bchapter%5D=title`;
   const rawResults: any[] = [];
+  const fetched = new Set<string>();
 
   while (url) {
+    // Guard against a `next` that points back to a page already fetched, which would otherwise
+    // request Udemy's API in an endless loop from the user's account.
+    if (fetched.has(url)) throw new Error(`Curriculum pagination loops back to ${url}`);
+    fetched.add(url);
     await randomDelay();
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Curriculum API Error: ${response.status}`);
