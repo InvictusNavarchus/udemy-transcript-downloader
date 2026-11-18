@@ -17,13 +17,13 @@
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
-    "@wxt-dev/auto-icons": "^1.1.0",
+    "@wxt-dev/auto-icons": "^1.1.2",
     "happy-dom": "^21.0.4",
     "typescript": "^5.9.3",
-    "vitest": "^5.1.0",
+    "vitest": "^5.1.1",
     "wxt": "^0.20.6"
   },
   "dependencies": {
-    "fflate": "^0.8.2"
+    "fflate": "^0.8.3"
   }
 }
