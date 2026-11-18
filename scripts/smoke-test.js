@@ -40,6 +40,26 @@
     const videos = items.filter((i) => i._class === 'lecture' && i.asset?.asset_type === 'Video');
     if (!ok('found Video lectures', videos.length > 0, videos.length)) return;
 
+    // 2b. Pagination contract (fetchCurriculum follows `next`)
+    // Force tiny pages so any course with more than 2 items has a second page, and check that
+    // `next` is an absolute API URL that keeps the field selection.
+    const smallRes = await fetch(
+      `https://www.udemy.com/api-2.0/courses/${courseId}/subscriber-curriculum-items/?curriculum_types=chapter%2Clecture%2Cquiz&page_size=2&fields%5Blecture%5D=title%2Casset&fields%5Bchapter%5D=title`
+    );
+    const small = smallRes.ok ? await smallRes.json() : null;
+    if (!small?.next) {
+      log('pagination: next link', small ? 'WARN' : 'FAIL', small ? `no next with page_size=2 (count=${small.count}); not checked` : smallRes.status);
+    } else {
+      ok('pagination: next is absolute API URL', small.next.startsWith('https://www.udemy.com/api-2.0/'), small.next);
+      ok('pagination: next keeps fields', small.next.includes('fields%5Blecture%5D=title%2Casset'), small.next);
+      const page2Res = await fetch(small.next);
+      const page2 = page2Res.ok ? await page2Res.json() : null;
+      if (ok('pagination: page 2 HTTP', page2Res.ok, page2Res.status)) {
+        const lectures = (page2.results ?? []).filter((i) => i._class === 'lecture');
+        ok('pagination: page 2 lectures keep asset field', lectures.every((i) => 'asset' in i), `${lectures.length} lectures`);
+      }
+    }
+
     // 3. Captions API (fetchTranscript)
     // A lecture without English captions is a normal outcome (fetchTranscript returns null),
     // not an API contract failure, so try a few lectures. The cap keeps the request count low
