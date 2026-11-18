@@ -24,7 +24,8 @@ export interface UdemyCaption {
 
 /** Download state of one course. A course that was never started has no state at all. */
 export interface ProcessingState {
-  status: 'running' | 'paused' | 'completed' | 'error';
+  // 'pausing': Pause was clicked; the loop finishes its current lecture, then becomes 'paused'.
+  status: 'running' | 'pausing' | 'paused' | 'completed' | 'error';
   courseId: number;
   courseTitle: string;
   totalLectures: number;

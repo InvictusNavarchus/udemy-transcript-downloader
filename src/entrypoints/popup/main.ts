@@ -74,7 +74,8 @@ function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: Proc
   show(els.pause, false);
   if (state?.status === 'running') {
     show(els.pause, true);
-  } else if (state?.status === 'paused') {
+  } else if (state?.status === 'paused' || state?.status === 'pausing') {
+    // While pausing, Resume cancels the pause and the loop carries on.
     show(els.resume, true);
   } else {
     els.start.textContent = state?.status === 'completed' ? 'Download Again' : 'Start Download';

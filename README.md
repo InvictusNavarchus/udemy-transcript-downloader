@@ -215,7 +215,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 #### Popup UI (`index.html` + `style.css`)
 - Clean, minimal interface matching Udemy's design language
 - Progress bar with lecture counter
-- Status badge (Idle, Running, Paused, Completed, Error)
+- Status badge (Not started, Running, Pausing, Paused, Completed, Error). Pause takes effect after the lecture being fetched, so the popup shows "Pausing" until then; Resume during that time cancels the pause
 - Current task description for transparency
 
 **API Endpoints**:

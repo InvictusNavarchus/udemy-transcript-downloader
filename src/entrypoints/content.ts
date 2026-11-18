@@ -22,12 +22,18 @@ export default defineContentScript({
     let pauseRequested = false;
     // The course the running loop downloads; Pause names its course so it only stops that one.
     let loopCourseId: number | null = null;
+    // The running loop's state writer, so Pause and Resume can show their effect at once. They
+    // write through the loop's own in-memory state, which keeps it the single source of truth.
+    let loopUpdate: ((patch: Partial<ProcessingState>) => Promise<void>) | null = null;
 
     const processDownload = async (mode: 'start' | 'resume') => {
       if (loopRunning) {
         // Resume while the loop is still finishing the lecture it was on when Pause arrived:
         // cancelling the signal lets that loop carry on. Start is ignored while a loop runs.
-        if (mode === 'resume') pauseRequested = false;
+        if (mode === 'resume' && pauseRequested) {
+          pauseRequested = false;
+          await loopUpdate?.({ status: 'running', currentTask: 'Resuming...' });
+        }
         return;
       }
       loopRunning = true;
@@ -37,6 +43,7 @@ export default defineContentScript({
       } finally {
         loopRunning = false;
         loopCourseId = null;
+        loopUpdate = null;
       }
     };
 
@@ -73,6 +80,7 @@ export default defineContentScript({
         state = { ...state, ...patch, lastUpdated: Date.now() };
         await item.setValue(state);
       };
+      loopUpdate = update;
 
       try {
         // --- Initialization Phase ---
@@ -180,7 +188,11 @@ export default defineContentScript({
       } else if (message.action === 'PAUSE') {
         // Only a running loop can pause; the popup sends Pause to every Udemy tab because the
         // loop may be in a tab other than the active one.
-        if (loopRunning && loopCourseId === message.courseId) pauseRequested = true;
+        if (loopRunning && loopCourseId === message.courseId && !pauseRequested) {
+          pauseRequested = true;
+          // The loop only stops between lectures; say so instead of looking unresponsive.
+          void loopUpdate?.({ status: 'pausing', currentTask: 'Pausing after the current lecture...' });
+        }
       }
     });
   },
