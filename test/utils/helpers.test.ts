@@ -28,19 +28,55 @@ describe('vttToMarkdown', () => {
     expect(vttToMarkdown('')).toBe('');
   });
 
-  // Known bugs: caption text is filtered with the same line rules as cue IDs and timestamps.
-  it.fails('keeps a caption line that is only a number', () => {
+  it('keeps a caption line that is only a number', () => {
     expect(vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\nThe year was\n\n00:02.000 --> 00:03.000\n2024\n')).toBe(
       'The year was 2024'
     );
   });
 
-  it.fails('keeps a caption line that starts with a clock time', () => {
+  it('keeps a caption line that starts with a clock time', () => {
     expect(vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\n10:30 is when we start.\n')).toBe('10:30 is when we start.');
   });
 
-  it.fails('strips WebVTT voice tags', () => {
+  it('strips WebVTT voice tags', () => {
     expect(vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\n<v Speaker>Hello there</v>\n')).toBe('Hello there');
+  });
+
+  it('strips formatting, class and inline timestamp tags', () => {
+    expect(
+      vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:03.000\n<i>Very</i> <c.yellow>bright</c> <00:00:02.000>idea\n')
+    ).toBe('Very bright idea');
+  });
+
+  it('decodes character references after stripping tags', () => {
+    expect(
+      vttToMarkdown('WEBVTT\n\n00:01.000 --> 00:02.000\nR&amp;D uses &lt;b&gt; tags &#8212; &#x2014; caf&eacute;\n')
+    ).toBe('R&D uses <b> tags \u2014 \u2014 caf&eacute;');
+  });
+
+  it('skips header metadata, NOTE and STYLE blocks', () => {
+    const vtt = [
+      'WEBVTT - Lecture 1',
+      'Kind: captions',
+      'Language: en',
+      '',
+      'NOTE This is a comment',
+      'spanning two lines',
+      '',
+      'STYLE',
+      '::cue { color: lime }',
+      '',
+      '00:01.000 --> 00:02.000 align:start position:10%',
+      'Only this.',
+      '',
+    ].join('\n');
+    expect(vttToMarkdown(vtt)).toBe('Only this.');
+  });
+
+  it('joins a cue with several text lines', () => {
+    expect(vttToMarkdown('WEBVTT\n\nintro\n00:01.000 --> 00:02.000\nFirst line\nsecond line\n')).toBe(
+      'First line second line'
+    );
   });
 });
 
