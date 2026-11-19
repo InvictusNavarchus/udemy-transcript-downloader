@@ -186,6 +186,19 @@ function courseRow(state: ProcessingState, loopTab: Tab | null, isActiveCourse: 
   const meta = `${status[0]!.toUpperCase()}${status.slice(1)} · ${state.completedLectures} / ${state.totalLectures} · ${formatBytes(stateSize(state))}`;
   const actions = h('div', { className: 'row-actions' });
 
+  // Every running download can be paused from here. The current-course Pause only covers the course
+  // on the active page, and a tab can keep downloading a course after Udemy has moved it to another
+  // course page without a reload, leaving that download with no other Pause.
+  if (loopTab?.id !== undefined && state.status === 'running') {
+    const tabId = loopTab.id;
+    actions.append(
+      h('button', {
+        className: 'link',
+        textContent: 'Pause',
+        onclick: () => sendToTab(tabId, { action: 'PAUSE', courseId: state.courseId }),
+      })
+    );
+  }
   if (hasTranscripts(state)) {
     actions.append(h('button', { className: 'link', textContent: 'Save ZIP', onclick: () => saveZip(state) }));
   }
