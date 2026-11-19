@@ -96,6 +96,8 @@ export const stringToBuffer = (str: string) => strToU8(str);
 /** Formats a byte count for display, e.g. 512 B, 34 KB, 1.2 MB. */
 export const formatBytes = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  // Compare after rounding: just under 1 MB would otherwise show as "1024 KB".
+  const kilobytes = Math.round(bytes / 1024);
+  if (kilobytes < 1024) return `${kilobytes} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
