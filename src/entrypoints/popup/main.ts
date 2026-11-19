@@ -328,7 +328,12 @@ browser.storage.onChanged.addListener((changes, area) => {
 if (page.kind === 'course') {
   const current = () => courses.find((c) => c.courseId === page.courseId);
   els.start.addEventListener('click', () => sendToTab(page.tabId, { action: 'START', language: selectedLanguage() }));
-  els.resume.addEventListener('click', () => sendToTab(page.tabId, { action: 'RESUME' }));
+  // While pausing, the loop may be in another tab (Pause reaches every tab). Resume must go to
+  // that loop: sent to the active tab, it would start a second loop on the same course, and the
+  // two would overwrite each other's progress. With no loop anywhere, the active tab resumes.
+  els.resume.addEventListener('click', () =>
+    sendToTab(loops.get(page.courseId)?.id ?? page.tabId, { action: 'RESUME' })
+  );
   els.pause.addEventListener('click', () => pauseEverywhere(page.courseId));
   els.saveZip.addEventListener('click', () => {
     const state = current();
