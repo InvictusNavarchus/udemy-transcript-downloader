@@ -26,6 +26,7 @@ const els = {
   pause: getElement<HTMLButtonElement>('btn-pause'),
   saveZip: getElement<HTMLButtonElement>('btn-save'),
   elsewhere: getElement<HTMLElement>('elsewhere'),
+  busy: getElement<HTMLElement>('busy'),
   switchTab: getElement<HTMLButtonElement>('btn-switch'),
   languageRow: getElement<HTMLElement>('language-row'),
   language: getElement<HTMLSelectElement>('language'),
@@ -103,6 +104,15 @@ const hasTranscripts = (state: ProcessingState) => state.curriculum.some((item) 
 
 const saveZip = (state: ProcessingState) => generateZip(state.curriculum, state.courseTitle);
 
+/** Title of another course whose loop runs in this tab, if any. */
+let busyCourseTitle: string | null = null;
+function busyWith(tabId: number, courseId: number): string | null {
+  for (const [id, tab] of loops) {
+    if (tab.id === tabId && id !== courseId) return courses.find((c) => c.courseId === id)?.courseTitle ?? 'another course';
+  }
+  return null;
+}
+
 function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: ProcessingState | null, loopTab: Tab | null) {
   show(els.notice, false);
   show(els.course, true);
@@ -115,6 +125,16 @@ function renderCourse(page: Extract<ActivePage, { kind: 'course' }>, state: Proc
     ? 'The download stopped when its tab was closed or reloaded. Resume continues where it left off.'
     : (state?.currentTask ?? '');
   show(els.elsewhere, !interrupted && loopTab !== null && loopTab.id !== page.tabId);
+
+  // A tab runs one loop at a time. If Udemy moved this tab to another course page while it keeps
+  // downloading a course, Start and Resume here would be ignored, so say why instead.
+  busyCourseTitle = busyWith(page.tabId, page.courseId);
+  show(els.busy, busyCourseTitle !== null);
+  els.busy.textContent = busyCourseTitle
+    ? `This tab is still downloading “${busyCourseTitle}”. Pause it in the list below or wait for it to finish, then start this course.`
+    : '';
+  els.start.disabled = busyCourseTitle !== null || languages === null;
+  els.resume.disabled = busyCourseTitle !== null;
 
   const total = state?.totalLectures ?? 0;
   const done = state?.completedLectures ?? 0;
@@ -274,7 +294,7 @@ async function loadLanguages(tabId: number, state: ProcessingState | null) {
     ...languages.map((l) => new Option(l.auto ? `${l.label} (auto-generated)` : l.label, l.code, false, l.code === selected))
   );
   els.language.disabled = false;
-  els.start.disabled = false;
+  els.start.disabled = busyCourseTitle !== null;
 }
 
 els.language.addEventListener('change', () => preferredLanguage.setValue(els.language.value));
@@ -358,7 +378,7 @@ if (page.kind === 'course') {
   // that loop: sent to the active tab, it would start a second loop on the same course, and the
   // two would overwrite each other's progress. With no loop anywhere, the active tab resumes.
   els.resume.addEventListener('click', () =>
-    sendToTab(loops.get(page.courseId)?.id ?? page.tabId, { action: 'RESUME' })
+    sendToTab(loops.get(page.courseId)?.id ?? page.tabId, { action: 'RESUME', courseId: page.courseId })
   );
   els.pause.addEventListener('click', () => pauseEverywhere(page.courseId));
   els.saveZip.addEventListener('click', () => {

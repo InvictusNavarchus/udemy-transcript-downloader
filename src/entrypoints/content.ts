@@ -36,13 +36,16 @@ export default defineContentScript({
     let loopUpdate: ((patch: Partial<ProcessingState>) => Promise<void>) | null = null;
 
     /** Start fetches the course again in `language`; Resume continues with the saved language. */
-    type Run = { mode: 'start'; language: CaptionLanguage } | { mode: 'resume' };
+    type Run = { mode: 'start'; language: CaptionLanguage } | { mode: 'resume'; courseId: number };
 
     const processDownload = async (run: Run) => {
       if (loopRunning) {
         // Resume while the loop is still finishing the lecture it was on when Pause arrived:
-        // cancelling the signal lets that loop carry on. Start is ignored while a loop runs.
-        if (run.mode === 'resume' && pauseRequested) {
+        // cancelling the signal lets that loop carry on. Only a Resume for that loop's course
+        // counts: the tab may since have moved to another course page, and a Resume meant for
+        // that course must not cancel the pause of the one downloading. Start is ignored while
+        // a loop runs (one loop per tab; the popup says so).
+        if (run.mode === 'resume' && run.courseId === loopCourseId && pauseRequested) {
           pauseRequested = false;
           await loopUpdate?.({ status: 'running', currentTask: 'Resuming...' });
         }
@@ -70,6 +73,9 @@ export default defineContentScript({
         console.error(e);
         return;
       }
+      // The popup sent Resume for the course it saw on this page; if the page has moved to
+      // another course since, resuming would act on the wrong one.
+      if (run.mode === 'resume' && run.courseId !== courseId) return;
       loopCourseId = courseId;
       const item = courseState(courseId);
       const saved = await item.getValue();
@@ -237,7 +243,7 @@ export default defineContentScript({
       } else if (message.action === 'START') {
         processDownload({ mode: 'start', language: message.language });
       } else if (message.action === 'RESUME') {
-        processDownload({ mode: 'resume' });
+        processDownload({ mode: 'resume', courseId: message.courseId });
       } else if (message.action === 'PAUSE') {
         // Only a running loop can pause; the popup sends Pause to every Udemy tab because the
         // loop may be in a tab other than the active one.

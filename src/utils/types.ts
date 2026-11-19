@@ -51,7 +51,7 @@ export type MessagePayload =
   | { action: 'GET_PAGE' }
   | { action: 'GET_LANGUAGES' }
   | { action: 'START'; language: CaptionLanguage }
-  | { action: 'RESUME' }
+  | { action: 'RESUME'; courseId: number }
   | { action: 'PAUSE'; courseId: number };
 
 /** The content script's answer to GET_PAGE. */
