@@ -10,12 +10,14 @@
   <div class="app">
     <header>
       <h1>Udemy Downloader</h1>
-      <div id="status-badge" class="badge">Idle</div>
+      <div id="status-badge" class="badge hidden"></div>
     </header>
 
-    <div class="content">
-      <h2 id="course-title">...</h2>
-      
+    <p id="notice" class="notice">Loading…</p>
+
+    <section id="course" class="hidden">
+      <h2 id="course-title"></h2>
+
       <div class="progress-container">
         <div class="progress-bar">
           <div id="fill" class="fill" style="width: 0%"></div>
@@ -25,14 +27,47 @@
         </div>
       </div>
 
-      <p id="task" class="task-text">Waiting to start...</p>
-    </div>
+      <p id="task" class="task-text"></p>
 
-    <div class="actions">
-      <button id="btn-start" class="btn primary">Start Download</button>
-      <button id="btn-resume" class="btn secondary hidden">Resume</button>
-      <button id="btn-pause" class="btn warning hidden">Pause</button>
-    </div>
+      <p id="busy" class="hint hidden"></p>
+
+      <p id="elsewhere" class="hint hidden">
+        Downloading in another tab.
+        <button id="btn-switch" class="link">Switch to that tab</button>
+      </p>
+
+      <label id="language-row" class="language hidden">
+        Transcript language
+        <select id="language" disabled>
+          <option>Checking lectures for captions…</option>
+        </select>
+      </label>
+
+      <div class="actions">
+        <button id="btn-save" class="btn secondary hidden">Save ZIP</button>
+        <button id="btn-start" class="btn primary">Start Download</button>
+        <button id="btn-resume" class="btn secondary hidden">Resume</button>
+        <button id="btn-pause" class="btn warning hidden">Pause</button>
+      </div>
+
+      <details id="failures" class="details hidden">
+        <summary id="failures-summary"></summary>
+        <ul id="failures-list"></ul>
+      </details>
+
+      <details id="log" class="details hidden">
+        <summary id="log-summary"></summary>
+        <ol id="log-list"></ol>
+      </details>
+    </section>
+
+    <section id="saved" class="saved hidden">
+      <div class="saved-header">
+        <h3>Saved courses</h3>
+        <span id="storage-total"></span>
+      </div>
+      <ul id="course-list"></ul>
+    </section>
   </div>
   <script type="module" src="main.ts"></script>
 </body>

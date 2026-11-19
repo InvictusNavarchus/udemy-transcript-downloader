@@ -3,10 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   courseTitleFromDocumentTitle,
   fetchCurriculum,
+  fetchCaptionLanguages,
   fetchTranscript,
   getCourseId,
   isVideoLecture,
+  listCaptionLanguages,
   pickCaption,
+  transcriptMarkdown,
 } from '@/utils/udemy-api';
 import type { UdemyCaption, UdemyCurriculumItem } from '@/utils/types';
 import { vttToMarkdown } from '@/utils/helpers';
@@ -139,26 +142,26 @@ describe('fetchTranscript', () => {
   it.each<FixtureSet>(['course-a', 'course-b'])('returns the en_US transcript for %s', async (set) => {
     const { lecture, enUrl, fetchMock } = setup(set);
 
-    const result = await fetchTranscript(COURSE_ID, lecture.id);
+    const result = await fetchTranscript(COURSE_ID, lecture.id, 'en');
 
-    expect(result).toBe(vttToMarkdown(fixtureText(set, 'captions.vtt')));
+    expect(result).toEqual({ kind: 'transcript', markdown: vttToMarkdown(fixtureText(set, 'captions.vtt')) });
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([lectureUrl(COURSE_ID, lecture.id), enUrl]);
   });
 
   it('picks en_US out of many locales (course-b: 8th of 10)', async () => {
     const { lecture, fetchMock } = setup('course-b');
     expect(lecture.asset.captions).toHaveLength(10);
-    await fetchTranscript(COURSE_ID, lecture.id);
+    await fetchTranscript(COURSE_ID, lecture.id, 'en');
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/en_US/');
   });
 
   it.each([403, 429, 503])('rejects when the lecture request fails with HTTP %i', async (status) => {
     const { lecture } = setup('course-a', (urls) => ({ [urls.lecture]: () => text('nope', status) }));
-    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow(`Lecture API Error: ${status}`);
+    await expect(fetchTranscript(COURSE_ID, lecture.id, 'en')).rejects.toThrow(`Lecture API Error: ${status}`);
   });
 
   // Intended asymmetry with the HTTP-error case above: a thrown error propagates instead of
-  // returning null. content.ts catches it per lecture, logs it and leaves `isCompleted` unset, so
+  // returning a "no captions" result. content.ts catches it per lecture, logs it and leaves `isCompleted` unset, so
   // the lecture is retried on Resume. Returning null would permanently record a transient network
   // failure as "[No Transcript Available]".
   it('rejects when the lecture request throws', async () => {
@@ -167,24 +170,34 @@ describe('fetchTranscript', () => {
         throw new TypeError('NetworkError');
       },
     }));
-    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow('NetworkError');
+    await expect(fetchTranscript(COURSE_ID, lecture.id, 'en')).rejects.toThrow('NetworkError');
   });
 
-  it('returns null when the lecture has no captions', async () => {
+  it('reports no captions when the lecture has none', async () => {
     stubFetch({ [lectureUrl(COURSE_ID, 1)]: () => json({ asset: { captions: [] } }) });
-    expect(await fetchTranscript(COURSE_ID, 1)).toBeNull();
+    expect(await fetchTranscript(COURSE_ID, 1, 'en')).toEqual({ kind: 'no-captions' });
   });
 
-  it('returns null when there is no English track', async () => {
-    const lecture = fixtureJson('course-b', 'lecture.json');
-    lecture.asset.captions = lecture.asset.captions.filter((c: any) => c.locale_id !== 'en_US');
+  it('reports the available languages when the chosen one is missing', async () => {
+    const lecture = fixtureJson('course-a', 'lecture.json');
     stubFetch({ [lectureUrl(COURSE_ID, lecture.id)]: () => json(lecture) });
-    expect(await fetchTranscript(COURSE_ID, lecture.id)).toBeNull();
+    expect(await fetchTranscript(COURSE_ID, lecture.id, 'de')).toEqual({ kind: 'language-missing', available: ['English'] });
+  });
+
+  it('downloads the chosen language', async () => {
+    const lecture = fixtureJson('course-b', 'lecture.json');
+    const de = lecture.asset.captions.find((c: any) => c.locale_id === 'de_DE');
+    const fetchMock = stubFetch({
+      [lectureUrl(COURSE_ID, lecture.id)]: () => json(lecture),
+      [de.url]: () => text(fixtureText('course-b', 'captions.vtt')),
+    });
+    expect((await fetchTranscript(COURSE_ID, lecture.id, 'de')).kind).toBe('transcript');
+    expect(fetchMock).toHaveBeenLastCalledWith(de.url);
   });
 
   it('rejects when the VTT request fails', async () => {
     const { lecture, enUrl, fetchMock } = setup('course-a', (urls) => ({ [urls.vtt]: () => text('gone', 410) }));
-    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow('Caption download error: 410');
+    await expect(fetchTranscript(COURSE_ID, lecture.id, 'en')).rejects.toThrow('Caption download error: 410');
     expect(fetchMock).toHaveBeenLastCalledWith(enUrl);
   });
 
@@ -194,7 +207,7 @@ describe('fetchTranscript', () => {
         throw new TypeError('NetworkError');
       },
     }));
-    await expect(fetchTranscript(COURSE_ID, lecture.id)).rejects.toThrow('NetworkError');
+    await expect(fetchTranscript(COURSE_ID, lecture.id, 'en')).rejects.toThrow('NetworkError');
     expect(fetchMock).toHaveBeenLastCalledWith(enUrl);
   });
 
@@ -207,7 +220,83 @@ describe('fetchTranscript', () => {
       [lectureUrl(COURSE_ID, lecture.id)]: () => json(lecture),
       [caption.url]: () => text(fixtureText('course-a', 'captions.vtt')),
     });
-    expect(await fetchTranscript(COURSE_ID, lecture.id)).toBe(vttToMarkdown(fixtureText('course-a', 'captions.vtt')));
+    expect(await fetchTranscript(COURSE_ID, lecture.id, 'en')).toEqual({
+      kind: 'transcript',
+      markdown: vttToMarkdown(fixtureText('course-a', 'captions.vtt')),
+    });
+  });
+});
+
+describe('transcriptMarkdown', () => {
+  it('returns the transcript', () => {
+    expect(transcriptMarkdown({ kind: 'transcript', markdown: 'Hello.' }, 'English')).toBe('Hello.');
+  });
+
+  it('marks an empty transcript and a lecture without captions alike', () => {
+    expect(transcriptMarkdown({ kind: 'transcript', markdown: '' }, 'English')).toBe('> [No Transcript Available]');
+    expect(transcriptMarkdown({ kind: 'no-captions' }, 'English')).toBe('> [No Transcript Available]');
+  });
+
+  it('names the missing language and the available ones', () => {
+    expect(transcriptMarkdown({ kind: 'language-missing', available: ['English', 'Spanish'] }, 'German')).toBe(
+      '> [No German transcript. Available: English, Spanish]'
+    );
+  });
+});
+
+describe('listCaptionLanguages', () => {
+  const track = (locale_id: string, source: string, video_label?: string): UdemyCaption => ({
+    locale_id,
+    source,
+    video_label,
+    url: `https://captions.example/${locale_id}.vtt`,
+  });
+
+  it('lists course-b languages by label without the [Auto] marker', () => {
+    const languages = listCaptionLanguages(fixtureJson('course-b', 'lecture.json').asset.captions);
+    expect(languages.map((l) => l.label)).toEqual([
+      'Czech', 'Dutch', 'English', 'French', 'German', 'Indonesian', 'Korean', 'Portuguese', 'Spanish', 'Turkish',
+    ]);
+    expect(languages.every((l) => l.auto)).toBe(true);
+    expect(languages.find((l) => l.label === 'German')?.code).toBe('de');
+  });
+
+  it('merges locales of one language and marks it manual if any track is', () => {
+    expect(listCaptionLanguages([track('en_US', 'auto', 'English [Auto]'), track('en_GB', 'manual', 'English (UK)')])).toEqual([
+      { code: 'en', label: 'English (UK)', auto: false },
+    ]);
+  });
+
+  it('falls back to the language name when a track has no label', () => {
+    expect(listCaptionLanguages([track('fr_FR', 'manual')])).toEqual([{ code: 'fr', label: 'French', auto: false }]);
+  });
+
+  it('leaves out tracks without a URL', () => {
+    expect(listCaptionLanguages([{ ...track('fr_FR', 'manual', 'French'), url: undefined }])).toEqual([]);
+  });
+});
+
+describe('fetchCaptionLanguages', () => {
+  const video = (id: number) => ({ _class: 'lecture', id, title: `L${id}`, asset: { id, title: 'v', asset_type: 'Video' } });
+
+  it('reads the first video lecture that has captions', async () => {
+    const fetchMock = stubFetch({
+      [curriculumUrl(COURSE_ID)]: () =>
+        json({ results: [{ _class: 'chapter', id: 1, title: 'C' }, video(10), video(11), video(12)] }),
+      [lectureUrl(COURSE_ID, 10)]: () => json({ asset: { captions: [] } }),
+      [lectureUrl(COURSE_ID, 11)]: () => json(fixtureJson('course-a', 'lecture.json')),
+    });
+    expect(await fetchCaptionLanguages(COURSE_ID)).toEqual([{ code: 'en', label: 'English', auto: false }]);
+    expect(fetchMock).not.toHaveBeenCalledWith(lectureUrl(COURSE_ID, 12));
+  });
+
+  it('gives up after three lectures without captions', async () => {
+    const fetchMock = stubFetch({
+      [curriculumUrl(COURSE_ID)]: () => json({ results: [video(1), video(2), video(3), video(4)] }),
+      ...Object.fromEntries([1, 2, 3, 4].map((id) => [lectureUrl(COURSE_ID, id), () => json({ asset: { captions: [] } })])),
+    });
+    expect(await fetchCaptionLanguages(COURSE_ID)).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalledWith(lectureUrl(COURSE_ID, 4));
   });
 });
 

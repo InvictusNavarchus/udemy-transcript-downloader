@@ -9,19 +9,21 @@ A browser extension that enables you to download complete course transcripts fro
 ## 🎯 Features
 
 - **One-Click Download**: Start downloading all transcripts from a course with a single click
+- **Language Choice**: Pick any caption language the course offers; English is preselected the first time, then your last choice
 - **Chapter Organization**: Transcripts are automatically organized into folders by chapter
 - **Pause & Resume**: Pause downloads mid-process and resume exactly where you left off
 - **ZIP Export**: All transcripts are bundled into a single ZIP file for easy distribution
+- **Saved Courses**: The popup lists every course you've downloaded with its status and storage size. Save a course's ZIP again without re-downloading, or delete it to free space
 - **Merged Transcript**: Includes a full course transcript combining all lectures
-- **Real-Time Progress**: Live progress tracking shows exactly which lecture is being processed
+- **Real-Time Progress**: Live progress tracking shows exactly which lecture is being processed, and the toolbar icon of a downloading tab shows its percentage (grey while paused, ✓ when finished, ! on error)
 - **Robust Error Handling**: Gracefully handles missing transcripts and API errors
 - **Cross-Browser Support**: Works on Chrome/Edge and Firefox
 - **Lightweight & Efficient**: Random request delays prevent API rate limiting
 
 ## 📋 How It Works
 
-1. Navigate to any Udemy course lecture page (requires you to be enrolled)
-2. Click the extension icon in your toolbar to open the popup interface
+1. Open the course player of a Udemy course you're enrolled in (any lecture page)
+2. Click the extension icon in your toolbar. The popup shows the course open in the active tab
 3. Click **"Start Download"** to begin fetching transcripts
 4. The extension:
    - Extracts the course structure from the page
@@ -124,6 +126,7 @@ The extension icon should now appear in your browser's toolbar.
 ```
 src/
 ├── entrypoints/
+│   ├── background.ts           # Toolbar badge; migrates state saved by older versions
 │   ├── content.ts              # Main content script - orchestrates downloads
 │   └── popup/
 │       ├── index.html          # Popup UI
@@ -191,6 +194,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 - Orchestrates the entire download workflow
 - Implements pause/resume functionality through state management
 - Recoverable: saves state after each lecture for crash resilience
+- Keeps a separate state per course (`local:course:<id>`), so different courses can download in different tabs. Only the tab running a download writes its state; Pause is a message to that tab
 
 **Workflow**:
 1. Extract course ID and title from page DOM
@@ -200,8 +204,16 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 5. Generate ZIP file when complete
 6. Support pause/resume mid-process
 
+#### Background Script (`background.ts`)
+- On install or update, moves a download saved by older versions (one shared state) into its course's state
+- Sets the toolbar badge for a downloading tab, since content scripts cannot use the action API
+
 #### Popup Script (`main.ts`)
+- Shows the course open in the active tab, or explains what to open (a non-Udemy tab, the course landing page, or a page that needs a reload)
 - Provides UI for user control (Start, Pause, Resume)
+- If the course is downloading in another tab, says so and offers to switch to it
+- If a download's tab was closed or reloaded mid-download, shows it as Interrupted with Resume, instead of Running forever
+- Lists all saved courses (from any tab, Udemy or not) with status, progress and approximate storage size. **Save ZIP** rebuilds the ZIP from stored transcripts in the popup itself; **Delete** asks for a second click and is unavailable while a tab is downloading that course; a running course has **Pause**, which also covers a tab Udemy has moved to another course page while it keeps downloading
 - Displays real-time progress, current task, and status badge
 - Uses reactive storage watching for automatic UI updates
 - Sends messages to content script to trigger actions
@@ -209,7 +221,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 #### Popup UI (`index.html` + `style.css`)
 - Clean, minimal interface matching Udemy's design language
 - Progress bar with lecture counter
-- Status badge (Idle, Running, Paused, Completed, Error)
+- Status badge (Not started, Running, Pausing, Paused, Interrupted, Completed, Error). Pause takes effect after the lecture being fetched, so the popup shows "Pausing" until then; Resume during that time cancels the pause
 - Current task description for transparency
 
 **API Endpoints**:
@@ -231,8 +243,11 @@ Testing has two layers, because the extension depends on an API it doesn't contr
    Returns asset details including caption URLs
 
 ### Error Handling
-- Lectures without English captions are included as "[No Transcript Available]"
-- A failed request (HTTP error, rate limit, network) is not treated as "no transcript": the lecture is marked "[Transcript download failed: …]" in the ZIP, stays unfinished so Resume after a pause retries it, and the final status reports how many lectures failed
+- Lectures without any captions are included as "[No Transcript Available]"
+- Lectures without captions in the chosen language say which languages they do have, e.g. "[No German transcript. Available: English, Spanish]", so you know a download in another language would fill the gap
+- A failed request (HTTP error, rate limit, network) is not treated as "no transcript": the lecture is marked "[Transcript download failed: …]" in the ZIP and stays unfinished. The popup lists failed lectures with the reason, and **Retry N failed** fetches only those and saves a new ZIP
+- If a download stops with an error after the lecture list has loaded, **Resume** continues from the saved progress; **Start Over** fetches everything again. If loading the lecture list itself failed, there is nothing to continue and only Start Over is offered. If the error status can't be saved either (e.g. storage full), the course shows as Interrupted, which also offers Resume
+- The popup shows the download's log (the last 50 entries)
 - Continues processing even if individual lecture fails
 
 ## 🔒 Permissions
@@ -242,6 +257,7 @@ The extension requests minimal permissions:
 | Permission | Purpose |
 |-----------|---------|
 | `storage` | Persist download state locally |
+| `unlimitedStorage` | Keep the transcripts of several courses. Chrome otherwise caps extension storage at 10 MB, and a large course alone can take a few MB |
 | `activeTab` | Detect active Udemy page |
 | `host_permissions: https://www.udemy.com/*` | API access to Udemy services |
 
@@ -251,7 +267,7 @@ No data is sent to external servers except Udemy's official API.
 
 Downloads are fully recoverable via persistent storage:
 
-If the extension crashes or browser closes mid-download, users can click **Resume** to continue from the last completed lecture.
+If the tab is closed or reloaded, or the browser closes mid-download, the popup shows the course as **Interrupted**. Open the course again and click **Resume** to continue from the last completed lecture.
 
 ## 📝 File Output Format
 
@@ -278,7 +294,7 @@ CourseTitle_Transcripts.zip
 ## ⚠️ Limitations
 
 - **Enrollment Required**: Only works for courses you're enrolled in
-- **English Transcripts Only**: Currently extracts English captions only (any English locale, such as US or UK). Instructor-written captions are preferred over auto-generated ones
+- **One Language per Download**: The language list comes from the course's first lecture with captions, so a few lectures may lack the chosen language. Locales are merged (US and UK English are both "English"), and instructor-written captions are preferred over auto-generated ones
 - **Video Lectures Only**: Skips non-video content (quizzes, documents)
 - **API Dependent**: Requires Udemy API availability (can be shutdown by Udemy at any time)
 - **Rate Limiting**: Random delays to prevent API throttling may increase download time
