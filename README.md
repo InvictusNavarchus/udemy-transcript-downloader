@@ -99,22 +99,26 @@ The extension icon should now appear in your browser's toolbar.
 ### Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd udemy-transcript-downloader
    ```
 
 2. **Install dependencies**
+
    ```bash
    bun install
    ```
 
 3. **Start development server**
+
    ```bash
    bun run dev
    ```
-   
+
    For Firefox:
+
    ```bash
    bun run dev:firefox
    ```
@@ -148,17 +152,17 @@ test/
 
 ### Available Commands
 
-| Command | Purpose |
-|---------|---------|
-| `bun run dev` | Start development with live reloading (Chrome/Edge) |
-| `bun run dev:firefox` | Start development for Firefox with MV3 |
-| `bun run build` | Build extension for production (Chrome/Edge) |
-| `bun run build:firefox` | Build extension for Firefox |
-| `bun run zip` | Create distributable ZIP (Chrome/Edge) |
-| `bun run zip:firefox` | Create distributable ZIP (Firefox) |
-| `bun run compile` | Type-check TypeScript (no emit) |
-| `bun run test` | Run the Vitest suite once |
-| `bun run test:watch` | Run Vitest in watch mode |
+| Command                 | Purpose                                             |
+| ----------------------- | --------------------------------------------------- |
+| `bun run dev`           | Start development with live reloading (Chrome/Edge) |
+| `bun run dev:firefox`   | Start development for Firefox with MV3              |
+| `bun run build`         | Build extension for production (Chrome/Edge)        |
+| `bun run build:firefox` | Build extension for Firefox                         |
+| `bun run zip`           | Create distributable ZIP (Chrome/Edge)              |
+| `bun run zip:firefox`   | Create distributable ZIP (Firefox)                  |
+| `bun run compile`       | Type-check TypeScript (no emit)                     |
+| `bun run test`          | Run the Vitest suite once                           |
+| `bun run test:watch`    | Run Vitest in watch mode                            |
 
 ### Type Checking
 
@@ -190,6 +194,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 ### Entry Points
 
 #### Content Script (`content.ts`)
+
 - Runs on all Udemy course pages (`*://www.udemy.com/course/*`), since Udemy moves between them without full page loads; downloads start from the course player (lecture, quiz, etc.)
 - Orchestrates the entire download workflow
 - Implements pause/resume functionality through state management
@@ -197,6 +202,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 - Keeps a separate state per course (`local:course:<id>`), so different courses can download in different tabs. Only the tab running a download writes its state; Pause is a message to that tab
 
 **Workflow**:
+
 1. Extract course ID and title from page DOM
 2. Fetch complete course curriculum
 3. Iterate through lectures and fetch transcripts
@@ -205,10 +211,12 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 6. Support pause/resume mid-process
 
 #### Background Script (`background.ts`)
+
 - On install or update, deletes the state saved by older versions (one shared state for all courses). Its download is not carried over; start the course again
 - Sets the toolbar badge for a downloading tab, since content scripts cannot use the action API
 
 #### Popup Script (`main.ts`)
+
 - Shows the course open in the active tab, or explains what to open (a non-Udemy tab, the course landing page, or a page that needs a reload)
 - Provides UI for user control (Start, Pause, Resume)
 - If the course is downloading in another tab, says so and offers to switch to it
@@ -219,30 +227,37 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 - Sends messages to content script to trigger actions
 
 #### Popup UI (`index.html` + `style.css`)
+
 - Clean, minimal interface matching Udemy's design language
 - Progress bar with lecture counter
 - Status badge (Not started, Running, Pausing, Paused, Interrupted, Completed, Error). Pause takes effect after the lecture being fetched, so the popup shows "Pausing" until then; Resume during that time cancels the pause
 - Current task description for transparency
 
 **API Endpoints**:
+
 - Curriculum: `https://www.udemy.com/api-2.0/courses/{courseId}/subscriber-curriculum-items/`
 - Transcripts: `https://www.udemy.com/api-2.0/users/me/subscribed-courses/{courseId}/lectures/{lectureId}/`
 
 ### Endpoints Used
 
 1. **Curriculum Endpoint**
+
    ```
    GET /api-2.0/courses/{courseId}/subscriber-curriculum-items/
    ```
+
    Returns chapters, lectures, and quizzes with metadata
 
 2. **Lecture Endpoint**
+
    ```
    GET /api-2.0/users/me/subscribed-courses/{courseId}/lectures/{lectureId}/
    ```
+
    Returns asset details including caption URLs
 
 ### Error Handling
+
 - Lectures without any captions are included as "[No Transcript Available]"
 - Lectures without captions in the chosen language say which languages they do have, e.g. "[No German transcript. Available: English, Spanish]", so you know a download in another language would fill the gap
 - A failed request (HTTP error, rate limit, network) is not treated as "no transcript": the lecture is marked "[Transcript download failed: …]" in the ZIP and stays unfinished. The popup lists failed lectures with the reason, and **Retry N failed** fetches only those and saves a new ZIP
@@ -254,12 +269,12 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 
 The extension requests minimal permissions:
 
-| Permission | Purpose |
-|-----------|---------|
-| `storage` | Persist download state locally |
-| `unlimitedStorage` | Keep the transcripts of several courses. Chrome otherwise caps extension storage at 10 MB, and a large course alone can take a few MB |
-| `activeTab` | Detect active Udemy page |
-| `host_permissions: https://www.udemy.com/*` | API access to Udemy services |
+| Permission                                  | Purpose                                                                                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`                                   | Persist download state locally                                                                                                        |
+| `unlimitedStorage`                          | Keep the transcripts of several courses. Chrome otherwise caps extension storage at 10 MB, and a large course alone can take a few MB |
+| `activeTab`                                 | Detect active Udemy page                                                                                                              |
+| `host_permissions: https://www.udemy.com/*` | API access to Udemy services                                                                                                          |
 
 No data is sent to external servers except Udemy's official API.
 
@@ -272,6 +287,7 @@ If the tab is closed or reloaded, or the browser closes mid-download, the popup 
 ## 📝 File Output Format
 
 ### ZIP Structure
+
 ```
 CourseTitle_Transcripts.zip
 ├── 01_Chapter1/
@@ -285,11 +301,11 @@ CourseTitle_Transcripts.zip
 ```
 
 ### Markdown Format
+
 - Clean, plain text with light markdown formatting
 - Timestamps and metadata removed for readability
 - Properly formatted for note-taking and searching
 - Compatible with all markdown viewers and note-taking apps
-
 
 ## ⚠️ Limitations
 
@@ -316,4 +332,3 @@ Contributions are welcome! Feel free to:
 ## 📚 Resources
 
 - [WXT Documentation](https://wxt.dev/) - Web extension framework
-

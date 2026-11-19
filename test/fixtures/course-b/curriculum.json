@@ -1,70 +1,70 @@
 {
-  "count": 7,
-  "next": null,
-  "previous": null,
-  "results": [
-    {
-      "_class": "chapter",
-      "id": 6495850,
-      "title": "Introduction"
-    },
-    {
-      "_class": "lecture",
-      "id": 27047518,
-      "title": "Welcome!",
-      "asset": {
-        "_class": "asset",
-        "id": 38591042,
-        "asset_type": "Video",
-        "title": "20160BRN_How To_Lecture01_SL_v04.mp4",
-        "created": "2022-01-05T17:54:40Z"
-      }
-    },
-    {
-      "_class": "lecture",
-      "id": 27488438,
-      "title": "What you'll learn in this course",
-      "asset": {
-        "_class": "asset",
-        "id": 34869296,
-        "asset_type": "Video",
-        "title": "20160BRN_How To_Lecture02_DK.mp4",
-        "created": "2021-07-14T20:04:21Z"
-      }
-    },
-    {
-      "_class": "chapter",
-      "id": 6603062,
-      "title": "Structure Your Course"
-    },
-    {
-      "_class": "lecture",
-      "id": 27488462,
-      "title": "Learning Objectives: What are they and why do they matter?",
-      "asset": {
-        "_class": "asset",
-        "id": 34868714,
-        "asset_type": "Video",
-        "title": "20160BRN_How To_Lecture08_DK.mp4",
-        "created": "2021-07-14T19:29:54Z"
-      }
-    },
-    {
-      "_class": "chapter",
-      "id": 6603068,
-      "title": "What's next?"
-    },
-    {
-      "_class": "lecture",
-      "id": 27488574,
-      "title": "Thank you and good luck!",
-      "asset": {
-        "_class": "asset",
-        "id": 34869588,
-        "asset_type": "Video",
-        "title": "20160BRN_How To_Lecture30_DK_.mp4",
-        "created": "2021-07-14T20:25:34Z"
-      }
-    }
-  ]
+	"count": 7,
+	"next": null,
+	"previous": null,
+	"results": [
+		{
+			"_class": "chapter",
+			"id": 6495850,
+			"title": "Introduction"
+		},
+		{
+			"_class": "lecture",
+			"id": 27047518,
+			"title": "Welcome!",
+			"asset": {
+				"_class": "asset",
+				"id": 38591042,
+				"asset_type": "Video",
+				"title": "20160BRN_How To_Lecture01_SL_v04.mp4",
+				"created": "2022-01-05T17:54:40Z"
+			}
+		},
+		{
+			"_class": "lecture",
+			"id": 27488438,
+			"title": "What you'll learn in this course",
+			"asset": {
+				"_class": "asset",
+				"id": 34869296,
+				"asset_type": "Video",
+				"title": "20160BRN_How To_Lecture02_DK.mp4",
+				"created": "2021-07-14T20:04:21Z"
+			}
+		},
+		{
+			"_class": "chapter",
+			"id": 6603062,
+			"title": "Structure Your Course"
+		},
+		{
+			"_class": "lecture",
+			"id": 27488462,
+			"title": "Learning Objectives: What are they and why do they matter?",
+			"asset": {
+				"_class": "asset",
+				"id": 34868714,
+				"asset_type": "Video",
+				"title": "20160BRN_How To_Lecture08_DK.mp4",
+				"created": "2021-07-14T19:29:54Z"
+			}
+		},
+		{
+			"_class": "chapter",
+			"id": 6603068,
+			"title": "What's next?"
+		},
+		{
+			"_class": "lecture",
+			"id": 27488574,
+			"title": "Thank you and good luck!",
+			"asset": {
+				"_class": "asset",
+				"id": 34869588,
+				"asset_type": "Video",
+				"title": "20160BRN_How To_Lecture30_DK_.mp4",
+				"created": "2021-07-14T20:25:34Z"
+			}
+		}
+	]
 }

@@ -6,8 +6,7 @@ import type { ProcessingState } from './types';
  * separate progress and a finished course does not block starting another.
  * `getValue()` returns null for a course that has never been started.
  */
-export const courseState = (courseId: number) =>
-  storage.defineItem<ProcessingState>(`local:course:${courseId}`);
+export const courseState = (courseId: number) => storage.defineItem<ProcessingState>(`local:course:${courseId}`);
 
 /** The single shared state used before per-course states. */
 export const LEGACY_STATE_KEY = 'local:udemy_dl_state';
@@ -26,11 +25,11 @@ const COURSE_KEY = /^course:\d+$/;
 
 /** All saved course states, most recently updated first. */
 export const listCourseStates = async (): Promise<ProcessingState[]> => {
-  const all = await storage.snapshot('local');
-  return Object.entries(all)
-    .filter(([key]) => COURSE_KEY.test(key))
-    .map(([, value]) => value as ProcessingState)
-    .sort((a, b) => b.lastUpdated - a.lastUpdated);
+	const all = await storage.snapshot('local');
+	return Object.entries(all)
+		.filter(([key]) => COURSE_KEY.test(key))
+		.map(([, value]) => value as ProcessingState)
+		.sort((a, b) => b.lastUpdated - a.lastUpdated);
 };
 
 /** Removes a course's saved state, transcripts included. */

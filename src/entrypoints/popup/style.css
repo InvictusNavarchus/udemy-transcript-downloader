@@ -1,192 +1,254 @@
 :root {
-  --primary: #a435f0;
-  --bg: #ffffff;
-  --text: #2d2f31;
-  --gray: #d1d7dc;
+	--primary: #a435f0;
+	--bg: #ffffff;
+	--text: #2d2f31;
+	--gray: #d1d7dc;
 }
 
 body {
-  width: 300px;
-  font-family: system-ui, -apple-system, sans-serif;
-  margin: 0;
-  padding: 16px;
-  color: var(--text);
-  background: var(--bg);
+	width: 300px;
+	font-family: system-ui, -apple-system, sans-serif;
+	margin: 0;
+	padding: 16px;
+	color: var(--text);
+	background: var(--bg);
 }
 
 header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 12px;
 }
 
-h1 { font-size: 16px; margin: 0; }
-h2 { font-size: 14px; margin: 0 0 8px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+h1 {
+	font-size: 16px;
+	margin: 0;
+}
+h2 {
+	font-size: 14px;
+	margin: 0 0 8px 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
 
 .badge {
-  font-size: 10px;
-  padding: 2px 6px;
-  background: #eee;
-  border-radius: 4px;
-  font-weight: bold;
+	font-size: 10px;
+	padding: 2px 6px;
+	background: #eee;
+	border-radius: 4px;
+	font-weight: bold;
 }
 
-.progress-container { margin: 12px 0; }
+.progress-container {
+	margin: 12px 0;
+}
 
 .progress-bar {
-  height: 8px;
-  background: var(--gray);
-  border-radius: 4px;
-  overflow: hidden;
+	height: 8px;
+	background: var(--gray);
+	border-radius: 4px;
+	overflow: hidden;
 }
 
 .fill {
-  height: 100%;
-  background: var(--primary);
-  transition: width 0.2s ease;
+	height: 100%;
+	background: var(--primary);
+	transition: width 0.2s ease;
 }
 
 .stats {
-  font-size: 12px;
-  text-align: right;
-  margin-top: 4px;
-  color: #6a6f73;
+	font-size: 12px;
+	text-align: right;
+	margin-top: 4px;
+	color: #6a6f73;
 }
 
 .task-text {
-  font-size: 11px;
-  color: #6a6f73;
-  min-height: 1.5em;
-  margin-bottom: 16px;
+	font-size: 11px;
+	color: #6a6f73;
+	min-height: 1.5em;
+	margin-bottom: 16px;
 }
 
-.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
 
 .btn {
-  flex: 1;
-  padding: 8px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 13px;
+	flex: 1;
+	padding: 8px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 13px;
 }
 
 .btn:focus-visible {
-  outline: 2px solid var(--text);
-  outline-offset: 2px;
+	outline: 2px solid var(--text);
+	outline-offset: 2px;
 }
 
-.primary { background: var(--primary); color: white; }
-.primary:focus-visible { outline-color: var(--primary); }
+.primary {
+	background: var(--primary);
+	color: white;
+}
+.primary:focus-visible {
+	outline-color: var(--primary);
+}
 
-.secondary { background: #2d2f31; color: white; }
-.secondary:focus-visible { outline-color: #2d2f31; }
+.secondary {
+	background: #2d2f31;
+	color: white;
+}
+.secondary:focus-visible {
+	outline-color: #2d2f31;
+}
 
-.warning { background: #ffb300; color: black; }
-.warning:focus-visible { outline-color: #ffb300; }
+.warning {
+	background: #ffb300;
+	color: black;
+}
+.warning:focus-visible {
+	outline-color: #ffb300;
+}
 
 /* A utility class: it must beat component rules that set display (e.g. .language), whatever their order. */
-.hidden { display: none !important; }
+.hidden {
+	display: none !important;
+}
 .notice {
-  font-size: 13px;
-  line-height: 1.4;
-  color: #6a6f73;
-  margin: 8px 0;
+	font-size: 13px;
+	line-height: 1.4;
+	color: #6a6f73;
+	margin: 8px 0;
 }
 
 .hint {
-  font-size: 12px;
-  margin: -8px 0 16px;
+	font-size: 12px;
+	margin: -8px 0 16px;
 }
 
 .link {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--primary);
-  text-decoration: underline;
-  cursor: pointer;
-  font: inherit;
+	background: none;
+	border: none;
+	padding: 0;
+	color: var(--primary);
+	text-decoration: underline;
+	cursor: pointer;
+	font: inherit;
 }
 
 .language {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: #6a6f73;
-  margin-bottom: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 12px;
+	color: #6a6f73;
+	margin-bottom: 12px;
 }
 
 .language select {
-  font: inherit;
-  color: var(--text);
-  padding: 4px;
+	font: inherit;
+	color: var(--text);
+	padding: 4px;
 }
 
 .btn:disabled {
-  opacity: 0.5;
-  cursor: default;
+	opacity: 0.5;
+	cursor: default;
 }
 
 .saved {
-  border-top: 1px solid var(--gray);
-  margin-top: 16px;
-  padding-top: 12px;
+	border-top: 1px solid var(--gray);
+	margin-top: 16px;
+	padding-top: 12px;
 }
 
 .saved-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 11px;
-  color: #6a6f73;
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	font-size: 11px;
+	color: #6a6f73;
 }
 
-h3 { font-size: 13px; margin: 0; color: var(--text); }
+h3 {
+	font-size: 13px;
+	margin: 0;
+	color: var(--text);
+}
 
 #course-list {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  max-height: 220px;
-  overflow-y: auto;
+	list-style: none;
+	margin: 8px 0 0;
+	padding: 0;
+	max-height: 220px;
+	overflow-y: auto;
 }
 
 .course-row {
-  padding: 6px 0;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 12px;
+	padding: 6px 0;
+	border-bottom: 1px solid #f0f0f0;
+	font-size: 12px;
 }
 
-.course-row.current .row-title { color: var(--primary); }
+.course-row.current .row-title {
+	color: var(--primary);
+}
 
-.row-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-title {
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
 
-.row-meta { color: #6a6f73; font-size: 11px; margin: 2px 0; }
+.row-meta {
+	color: #6a6f73;
+	font-size: 11px;
+	margin: 2px 0;
+}
 
-.row-actions { display: flex; gap: 12px; font-size: 11px; }
+.row-actions {
+	display: flex;
+	gap: 12px;
+	font-size: 11px;
+}
 
-.danger { color: #c4122f; font-weight: 600; }
+.danger {
+	color: #c4122f;
+	font-weight: 600;
+}
 
 .details {
-  margin-top: 12px;
-  font-size: 11px;
-  color: #6a6f73;
+	margin-top: 12px;
+	font-size: 11px;
+	color: #6a6f73;
 }
 
-.details summary { cursor: pointer; font-weight: 600; }
+.details summary {
+	cursor: pointer;
+	font-weight: 600;
+}
 
 .details ul,
 .details ol {
-  margin: 6px 0 0;
-  padding-left: 18px;
-  max-height: 120px;
-  overflow-y: auto;
+	margin: 6px 0 0;
+	padding-left: 18px;
+	max-height: 120px;
+	overflow-y: auto;
 }
 
-.details li { margin-bottom: 2px; overflow-wrap: anywhere; }
+.details li {
+	margin-bottom: 2px;
+	overflow-wrap: anywhere;
+}
 
-#failures summary { color: #c4122f; }
+#failures summary {
+	color: #c4122f;
+}

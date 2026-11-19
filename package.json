@@ -1,37 +1,37 @@
 {
-  "name": "udemy-transcript-downloader",
-  "description": "Download course transcripts as Markdown / Zip.",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {
-    "dev": "wxt",
-    "dev:firefox": "wxt -b firefox --mv3",
-    "build": "wxt build",
-    "build:firefox": "wxt build -b firefox --mv3",
-    "zip": "wxt zip",
-    "zip:firefox": "wxt zip -b firefox --mv3",
-    "compile": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "postinstall": "wxt prepare",
-    "format": "biome format",
-    "format:write": "biome format --write",
-    "lint": "biome lint",
-    "lint:apply": "biome lint --write",
-    "check": "biome check",
-    "check:write": "biome check --write"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.6.8",
-    "@wxt-dev/auto-icons": "^1.1.2",
-    "happy-dom": "^21.0.4",
-    "typescript": "^7.0.2",
-    "vite": "^8.3.8",
-    "vitest": "^5.1.1",
-    "wxt": "^0.21.5"
-  },
-  "dependencies": {
-    "fflate": "^0.8.3"
-  }
+	"name": "udemy-transcript-downloader",
+	"description": "Download course transcripts as Markdown / Zip.",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"dev": "wxt",
+		"dev:firefox": "wxt -b firefox --mv3",
+		"build": "wxt build",
+		"build:firefox": "wxt build -b firefox --mv3",
+		"zip": "wxt zip",
+		"zip:firefox": "wxt zip -b firefox --mv3",
+		"compile": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"postinstall": "wxt prepare",
+		"format": "biome format",
+		"format:write": "biome format --write",
+		"lint": "biome lint",
+		"lint:apply": "biome lint --write",
+		"check": "biome check",
+		"check:write": "biome check --write"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.6.8",
+		"@wxt-dev/auto-icons": "^1.1.2",
+		"happy-dom": "^21.0.4",
+		"typescript": "^7.0.2",
+		"vite": "^8.3.8",
+		"vitest": "^5.1.1",
+		"wxt": "^0.21.5"
+	},
+	"dependencies": {
+		"fflate": "^0.8.3"
+	}
 }
