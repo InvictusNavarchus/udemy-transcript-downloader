@@ -274,6 +274,17 @@ const FALLBACK_LANGUAGES: CaptionLanguage[] = [{ code: 'en', label: 'English', a
 let languages: CaptionLanguage[] | null = null;
 let languagesRequested = false;
 
+/**
+ * The picker's text for a language. The fallback says that it is one: the course's first
+ * lectures (see fetchCaptionLanguages) had no captions, or they could not be read.
+ */
+const optionLabel = (language: CaptionLanguage, isFallback: boolean) =>
+  isFallback
+    ? `${language.label} (no captions found in the first lectures)`
+    : language.auto
+      ? `${language.label} (auto-generated)`
+      : language.label;
+
 /** Fills the language picker once; Start waits for it so it always sends a listed language. */
 async function loadLanguages(tabId: number, state: ProcessingState | null) {
   if (languagesRequested) return;
@@ -291,7 +302,7 @@ async function loadLanguages(tabId: number, state: ProcessingState | null) {
   const wanted = [state?.language, await preferredLanguage.getValue(), 'en'];
   const selected = wanted.find((code) => languages!.some((l) => l.code === code)) ?? languages[0]!.code;
   els.language.replaceChildren(
-    ...languages.map((l) => new Option(l.auto ? `${l.label} (auto-generated)` : l.label, l.code, false, l.code === selected))
+    ...languages.map((l) => new Option(optionLabel(l, found.length === 0), l.code, false, l.code === selected))
   );
   els.language.disabled = false;
   els.start.disabled = busyCourseTitle !== null;
