@@ -23,46 +23,44 @@ export default defineContentScript({
 
 		// --- Orchestration Logic ---
 
-		// Only one download loop may run in this tab, and only that loop writes the download state
-		// while it runs. Pause is an in-memory signal the loop reads at each lecture, not a storage
-		// write: a storage write from outside raced with the loop's own progress saves, and whichever
-		// landed last won (a Pause could be overwritten back to 'running', or a Resume lost).
-		let loopRunning = false;
-		let pauseRequested = false;
-		// The course the running loop downloads; Pause names its course so it only stops that one.
-		let loopCourseId: number | null = null;
-		// The running loop's state writer, so Pause and Resume can show their effect at once. They
-		// write through the loop's own in-memory state, which keeps it the single source of truth.
-		let loopUpdate: ((patch: Partial<ProcessingState>) => Promise<void>) | null = null;
+		type Updater = (patch: Partial<ProcessingState>) => Promise<void>;
+		/**
+		 * The download loop running in this tab. Only one may run, and only it writes its course's
+		 * state while it runs. Pause is an in-memory signal the loop reads at each lecture, not a
+		 * storage write: a storage write from outside raced with the loop's own progress saves, and
+		 * whichever landed last won (a Pause could be overwritten back to 'running', or a Resume lost).
+		 */
+		interface ActiveDownload {
+			/** The course being downloaded; Pause and Resume name their course so they only act on it. */
+			courseId: number;
+			pauseRequested: boolean;
+			/**
+			 * The loop's state writer, so Pause and Resume can show their effect at once. They write
+			 * through the loop's own in-memory state, which keeps it the single source of truth. Null
+			 * until the saved state is loaded: the loop already counts as running then, so that a
+			 * second Start is ignored, but there is no state to write through yet.
+			 */
+			update: Updater | null;
+		}
+		// One object rather than separate flags, so "is a loop running" and its details cannot disagree.
+		let active: ActiveDownload | null = null;
 
 		/** Start fetches the course again in `language`; Resume continues with the saved language. */
 		type Run = { mode: 'start'; language: CaptionLanguage } | { mode: 'resume'; courseId: number };
 
 		const processDownload = async (run: Run) => {
-			if (loopRunning) {
+			if (active) {
 				// Resume while the loop is still finishing the lecture it was on when Pause arrived:
 				// cancelling the signal lets that loop carry on. Only a Resume for that loop's course
 				// counts: the tab may since have moved to another course page, and a Resume meant for
 				// that course must not cancel the pause of the one downloading. Start is ignored while
 				// a loop runs (one loop per tab; the popup says so).
-				if (run.mode === 'resume' && run.courseId === loopCourseId && pauseRequested) {
-					pauseRequested = false;
-					await loopUpdate?.({ status: 'running', currentTask: 'Resuming...' });
+				if (run.mode === 'resume' && run.courseId === active.courseId && active.pauseRequested) {
+					active.pauseRequested = false;
+					await active.update?.({ status: 'running', currentTask: 'Resuming...' });
 				}
 				return;
 			}
-			loopRunning = true;
-			pauseRequested = false;
-			try {
-				await runDownload(run);
-			} finally {
-				loopRunning = false;
-				loopCourseId = null;
-				loopUpdate = null;
-			}
-		};
-
-		const runDownload = async (run: Run) => {
 			// The course is the one open in this tab. Udemy switches pages without reloading, so read
 			// it now rather than when the script was injected.
 			let courseId: number;
@@ -76,9 +74,20 @@ export default defineContentScript({
 			// The popup sent Resume for the course it saw on this page; if the page has moved to
 			// another course since, resuming would act on the wrong one.
 			if (run.mode === 'resume' && run.courseId !== courseId) return;
-			loopCourseId = courseId;
-			const item = courseState(courseId);
-			const saved = await item.getValue();
+
+			const download: ActiveDownload = { courseId, pauseRequested: false, update: null };
+			active = download;
+			try {
+				await runDownload(run, download);
+			} finally {
+				active = null;
+			}
+		};
+
+		const runDownload = async (run: Run, download: ActiveDownload) => {
+			const { courseId } = download;
+			const store = courseState(courseId);
+			const saved = await store.getValue();
 			const courseTitle = courseTitleFromDocumentTitle(document.title);
 
 			let state: ProcessingState = saved ?? {
@@ -97,9 +106,9 @@ export default defineContentScript({
 			// The loop keeps the authoritative state in memory and writes it whole; nothing else
 			// writes it while the loop runs, so there is no need to re-read before each save.
 			let badgeKey = '';
-			const update = async (patch: Partial<ProcessingState>) => {
+			const update: Updater = async (patch) => {
 				state = { ...state, ...patch, lastUpdated: Date.now() };
-				await item.setValue(state);
+				await store.setValue(state);
 				// Progress on the toolbar icon, sent only when it changes (most saves change only the task).
 				const badge = badgeFor(state);
 				if (`${badge.text}|${badge.color}` !== badgeKey) {
@@ -110,7 +119,7 @@ export default defineContentScript({
 					});
 				}
 			};
-			loopUpdate = update;
+			download.update = update;
 
 			try {
 				// --- Initialization Phase ---
@@ -145,11 +154,11 @@ export default defineContentScript({
 
 				for (const item of curriculum) {
 					// 1. Check Pause
-					if (pauseRequested) {
+					if (download.pauseRequested) {
 						await update({ status: 'paused', currentTask: 'Paused by user.' });
 						// A Resume that arrived during that save cleared the signal: carry on instead of
 						// leaving the course marked paused with no loop to resume it.
-						if (pauseRequested) return;
+						if (download.pauseRequested) return;
 						await update({ status: 'running', currentTask: 'Resuming...' });
 					}
 
@@ -202,12 +211,13 @@ export default defineContentScript({
 							: 'Download Finished',
 					logs: [...state.logs, failed > 0 ? `Finished with ${failed} failed lecture(s)` : 'Finished'],
 				});
-			} catch (e: any) {
+			} catch (e) {
 				console.error(e);
+				const reason = e instanceof Error ? e.message : String(e);
 				await update({
 					status: 'error',
-					currentTask: `Error: ${e.message}`,
-					logs: [...state.logs, `Stopped: ${e.message}`],
+					currentTask: `Error: ${reason}`,
+					logs: [...state.logs, `Stopped: ${reason}`],
 				});
 			}
 		};
@@ -233,7 +243,11 @@ export default defineContentScript({
 			} catch {
 				// Not the course player (e.g. the landing page): the popup explains what to open.
 			}
-			return { courseId, courseTitle: courseTitleFromDocumentTitle(document.title), runningCourseId: loopCourseId };
+			return {
+				courseId,
+				courseTitle: courseTitleFromDocumentTitle(document.title),
+				runningCourseId: active?.courseId ?? null,
+			};
 		};
 
 		browser.runtime.onMessage.addListener((message: MessagePayload, _sender, sendResponse) => {
@@ -255,10 +269,10 @@ export default defineContentScript({
 			} else if (message.action === 'PAUSE') {
 				// Only a running loop can pause; the popup sends Pause to every Udemy tab because the
 				// loop may be in a tab other than the active one.
-				if (loopRunning && loopCourseId === message.courseId && !pauseRequested) {
-					pauseRequested = true;
+				if (active && active.courseId === message.courseId && !active.pauseRequested) {
+					active.pauseRequested = true;
 					// The loop only stops between lectures; say so instead of looking unresponsive.
-					void loopUpdate?.({ status: 'pausing', currentTask: 'Pausing after the current lecture...' });
+					void active.update?.({ status: 'pausing', currentTask: 'Pausing after the current lecture...' });
 				}
 			}
 		});
