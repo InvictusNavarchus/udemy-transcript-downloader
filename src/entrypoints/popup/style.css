@@ -87,7 +87,8 @@ h2 { font-size: 14px; margin: 0 0 8px 0; white-space: nowrap; overflow: hidden; 
 .warning { background: #ffb300; color: black; }
 .warning:focus-visible { outline-color: #ffb300; }
 
-.hidden { display: none; }
+/* A utility class: it must beat component rules that set display (e.g. .language), whatever their order. */
+.hidden { display: none !important; }
 .notice {
   font-size: 13px;
   line-height: 1.4;
