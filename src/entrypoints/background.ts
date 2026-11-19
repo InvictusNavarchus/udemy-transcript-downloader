@@ -1,9 +1,9 @@
 import { defineBackground } from '#imports';
-import { migrateLegacyState } from '@/utils/storage';
+import { removeLegacyState } from '@/utils/storage';
 import type { BackgroundMessage } from '@/utils/types';
 
 export default defineBackground(() => {
-  browser.runtime.onInstalled.addListener(() => migrateLegacyState());
+  browser.runtime.onInstalled.addListener(() => removeLegacyState());
 
   // Content scripts cannot use the action API, so they send their badge here. It is set for the
   // sending tab only: each tab shows the course it downloads, and the browser drops a tab's badge

@@ -6,8 +6,8 @@ import {
   deleteCourseState,
   LEGACY_STATE_KEY,
   listCourseStates,
-  migrateLegacyState,
   preferredLanguage,
+  removeLegacyState,
   stateSize,
 } from '@/utils/storage';
 import type { ProcessingState } from '@/utils/types';
@@ -44,32 +44,14 @@ describe('courseState', () => {
   });
 });
 
-describe('migrateLegacyState', () => {
-  it('moves a started download into its course item as English and deletes the old item', async () => {
-    const { language, languageLabel, ...legacy } = state(7);
-    await storage.setItem(LEGACY_STATE_KEY, legacy);
-    await migrateLegacyState();
-    expect(await courseState(7).getValue()).toEqual(state(7));
+describe('removeLegacyState', () => {
+  it('deletes the old shared state and leaves course states alone', async () => {
+    await storage.setItem(LEGACY_STATE_KEY, { ...state(7), status: 'paused' });
+    await courseState(1).setValue(state(1));
+    await removeLegacyState();
     expect(await storage.getItem(LEGACY_STATE_KEY)).toBeNull();
-  });
-
-  it('drops an idle state, which has no course', async () => {
-    await storage.setItem(LEGACY_STATE_KEY, { ...state(0), status: 'idle', courseId: null });
-    await migrateLegacyState();
-    expect(await storage.getItem(LEGACY_STATE_KEY)).toBeNull();
-    expect(await storage.snapshot('local')).toEqual({});
-  });
-
-  it('keeps an existing per-course item', async () => {
-    await courseState(7).setValue(state(7, { completedLectures: 9 }));
-    await storage.setItem(LEGACY_STATE_KEY, state(7));
-    await migrateLegacyState();
-    expect((await courseState(7).getValue())?.completedLectures).toBe(9);
-  });
-
-  it('does nothing when there is no old item', async () => {
-    await migrateLegacyState();
-    expect(await storage.snapshot('local')).toEqual({});
+    expect(await courseState(7).getValue()).toBeNull();
+    expect(await courseState(1).getValue()).toEqual(state(1));
   });
 });
 

@@ -126,7 +126,7 @@ The extension icon should now appear in your browser's toolbar.
 ```
 src/
 ├── entrypoints/
-│   ├── background.ts           # Toolbar badge; migrates state saved by older versions
+│   ├── background.ts           # Toolbar badge; removes state saved by older versions
 │   ├── content.ts              # Main content script - orchestrates downloads
 │   └── popup/
 │       ├── index.html          # Popup UI
@@ -205,7 +205,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 6. Support pause/resume mid-process
 
 #### Background Script (`background.ts`)
-- On install or update, moves a download saved by older versions (one shared state) into its course's state
+- On install or update, deletes the state saved by older versions (one shared state for all courses). Its download is not carried over; start the course again
 - Sets the toolbar badge for a downloading tab, since content scripts cannot use the action API
 
 #### Popup Script (`main.ts`)
