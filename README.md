@@ -213,7 +213,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 - Provides UI for user control (Start, Pause, Resume)
 - If the course is downloading in another tab, says so and offers to switch to it
 - If a download's tab was closed or reloaded mid-download, shows it as Interrupted with Resume, instead of Running forever
-- Lists all saved courses (from any tab, Udemy or not) with status, progress and approximate storage size. **Save ZIP** rebuilds the ZIP from stored transcripts in the popup itself; **Delete** asks for a second click and is unavailable while a tab is downloading that course
+- Lists all saved courses (from any tab, Udemy or not) with status, progress and approximate storage size. **Save ZIP** rebuilds the ZIP from stored transcripts in the popup itself; **Delete** asks for a second click and is unavailable while a tab is downloading that course; a running course has **Pause**, which also covers a tab Udemy has moved to another course page while it keeps downloading
 - Displays real-time progress, current task, and status badge
 - Uses reactive storage watching for automatic UI updates
 - Sends messages to content script to trigger actions
@@ -221,7 +221,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 #### Popup UI (`index.html` + `style.css`)
 - Clean, minimal interface matching Udemy's design language
 - Progress bar with lecture counter
-- Status badge (Not started, Running, Pausing, Paused, Completed, Error). Pause takes effect after the lecture being fetched, so the popup shows "Pausing" until then; Resume during that time cancels the pause
+- Status badge (Not started, Running, Pausing, Paused, Interrupted, Completed, Error). Pause takes effect after the lecture being fetched, so the popup shows "Pausing" until then; Resume during that time cancels the pause
 - Current task description for transparency
 
 **API Endpoints**:
@@ -246,7 +246,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 - Lectures without any captions are included as "[No Transcript Available]"
 - Lectures without captions in the chosen language say which languages they do have, e.g. "[No German transcript. Available: English, Spanish]", so you know a download in another language would fill the gap
 - A failed request (HTTP error, rate limit, network) is not treated as "no transcript": the lecture is marked "[Transcript download failed: …]" in the ZIP and stays unfinished. The popup lists failed lectures with the reason, and **Retry N failed** fetches only those and saves a new ZIP
-- If a download stops with an error (e.g. storage), **Resume** continues from the saved progress; **Start Over** fetches everything again
+- If a download stops with an error after the lecture list has loaded, **Resume** continues from the saved progress; **Start Over** fetches everything again. If loading the lecture list itself failed, there is nothing to continue and only Start Over is offered. If the error status can't be saved either (e.g. storage full), the course shows as Interrupted, which also offers Resume
 - The popup shows the download's log (the last 50 entries)
 - Continues processing even if individual lecture fails
 
