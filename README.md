@@ -131,7 +131,7 @@ The extension icon should now appear in your browser's toolbar.
 src/
 ├── entrypoints/
 │   ├── background.ts           # Toolbar badge; removes state saved by older versions
-│   ├── content.ts              # Main content script - orchestrates downloads
+│   ├── content.ts              # Content script - answers the popup, runs the downloader
 │   └── popup/
 │       ├── index.html          # Popup UI
 │       ├── main.ts             # Popup controller and state binding
@@ -139,6 +139,7 @@ src/
 ├── utils/
 │   ├── types.ts                # TypeScript interfaces
 │   ├── udemy-api.ts            # Udemy API integration
+│   ├── download.ts             # Download loop: progress, pause/resume, ZIP
 │   ├── file-generator.ts       # ZIP file creation and download
 │   ├── storage.ts              # Persistent state management
 │   └── helpers.ts              # Utility functions
@@ -196,7 +197,7 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 #### Content Script (`content.ts`)
 
 - Runs on all Udemy course pages (`*://www.udemy.com/course/*`), since Udemy moves between them without full page loads; downloads start from the course player (lecture, quiz, etc.)
-- Orchestrates the entire download workflow
+- Answers the popup's messages and runs the download loop from `utils/download.ts`, which orchestrates the download workflow
 - Implements pause/resume functionality through state management
 - Recoverable: saves state after each lecture for crash resilience
 - Keeps a separate state per course (`local:course:<id>`), so different courses can download in different tabs. Only the tab running a download writes its state; Pause is a message to that tab
