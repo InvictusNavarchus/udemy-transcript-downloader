@@ -299,10 +299,13 @@ let lastStatuses = '';
 
 async function refresh() {
   courses = await listCourseStates();
-  // Asking every course tab is only needed when some status says a loop should exist, and a loop
-  // starts or stops only together with a status change.
+  // Asking every course tab is only needed when some status says a loop should exist. Ask again
+  // when a status changes, and while an active course has no known loop: resuming an interrupted
+  // download goes from 'running' to 'running', so no status change announces its new loop.
+  // A loop tab closing or reloading also ends a loop without a status change (see below).
   const statuses = courses.map((c) => `${c.courseId}:${c.status}`).join();
-  if (statuses !== lastStatuses) {
+  const unowned = courses.some((c) => isActiveStatus(c.status) && !loops.has(c.courseId));
+  if (statuses !== lastStatuses || unowned) {
     lastStatuses = statuses;
     loops = courses.some((c) => isActiveStatus(c.status)) ? await findLoopTabs() : new Map();
   }
@@ -321,6 +324,16 @@ const scheduleRefresh = () => {
 
 if (page.kind === 'notice') els.notice.textContent = page.message;
 scheduleRefresh();
+// Closing or reloading the tab that runs a loop ends the loop without a status change.
+const loopTabGone = (tabId: number) => {
+  if (![...loops.values()].some((tab) => tab.id === tabId)) return;
+  lastStatuses = ''; // Forces a new lookup.
+  scheduleRefresh();
+};
+browser.tabs.onRemoved.addListener((tabId) => loopTabGone(tabId));
+browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === 'loading') loopTabGone(tabId);
+});
 browser.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && Object.keys(changes).some((key) => key.startsWith('course:'))) scheduleRefresh();
 });
