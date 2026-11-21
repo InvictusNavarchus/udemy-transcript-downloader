@@ -2,7 +2,7 @@
 
 Everything about cutting a release: the steps, what the tooling does behind them, and how to write the changelog entries that become the release notes.
 
-Preparing a release (writing the changelog, choosing the version, previewing) is usually done by an AI agent; a human reviews that and performs the release itself. The steps below are marked with who does them.
+Preparing a release (writing the changelog, choosing the version, previewing) is usually done by an AI agent; a human reviews that and performs the release itself. The steps below are marked with who does them; [`AGENTS.md`](../AGENTS.md) sets out an agent's part and what it must not do.
 
 ## 1. The steps
 
