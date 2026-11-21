@@ -125,14 +125,3 @@ Setup, commands, testing, releasing and how the extension works inside: [docs/de
 ## 📄 License
 
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to:
-
-1. Create a feature branch (`git checkout -b feature/amazing-feature`)
-2. Make your changes and ensure type safety
-3. Run type checking and tests: `bun run compile && bun run test`
-4. Add an entry under `[Unreleased]` in `CHANGELOG.md` for user-visible changes (see [docs/releasing.md](docs/releasing.md#3-writing-changelog-entries))
-5. Commit with conventional commit messages: `feat:`, `fix:`, `docs:`, etc.
-6. Push and create a Pull Request
