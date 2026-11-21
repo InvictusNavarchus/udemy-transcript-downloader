@@ -37,31 +37,12 @@ How to set up, test and release the extension, and how it works inside. For what
 
    The dev server doesn't open a browser. Load the unpacked extension yourself from `.output/chrome-mv3-dev` or `.output/firefox-mv3-dev`. WXT only launches a browser when the optional `web-ext` package is installed.
 
-## Project Structure
+## Project Layout
 
-```
-src/
-├── entrypoints/
-│   ├── background.ts           # Toolbar badge; removes state saved by older versions
-│   ├── content.ts              # Content script - answers the popup, runs the downloader
-│   └── popup/
-│       ├── index.html          # Popup UI
-│       ├── main.ts             # Popup controller and state binding
-│       └── style.css           # Popup styling
-├── utils/
-│   ├── types.ts                # TypeScript interfaces
-│   ├── udemy-api.ts            # Udemy API integration
-│   ├── download.ts             # Download loop: progress, pause/resume, ZIP
-│   ├── file-generator.ts       # ZIP file creation and download
-│   ├── storage.ts              # Persistent state management
-│   └── helpers.ts              # Utility functions
-└── assets/                     # Extension assets (icons, etc.)
-scripts/
-└── smoke-test.js               # Console check against the live Udemy API
-test/
-├── fixtures/                   # Trimmed snapshots of real Udemy responses
-└── utils/                      # Vitest tests for src/utils
-```
+- `src/entrypoints/`: the content script, background script and popup. WXT builds the manifest from them
+- `src/utils/`: everything else, including the Udemy API client, the download loop and ZIP generation. The tests cover this directory
+- `scripts/smoke-test.js`: console check against the live Udemy API
+- `test/fixtures/`: trimmed snapshots of real Udemy responses; `test/utils/`: Vitest tests for `src/utils`
 
 ## Available Commands
 
@@ -99,95 +80,21 @@ User-visible changes get an entry under `[Unreleased]` in [`CHANGELOG.md`](../CH
 
 ## Technology Stack
 
-- **Language**: TypeScript 7+
-- **Framework**: [WXT](https://wxt.dev/) 0.21+ (Web Extension Framework) on [Vite](https://vite.dev/) 8
-- **Runtime & Package Manager**: Bun 1.3.1+
-- **Compression**: [fflate](https://github.com/101arrowz/fflate) 0.8.3 (ZIP compression)
-- **Testing**: [Vitest](https://vitest.dev/) 5 with happy-dom
+TypeScript, [WXT](https://wxt.dev/) on [Vite](https://vite.dev/), Bun as package manager, [fflate](https://github.com/101arrowz/fflate) for the ZIP, and [Vitest](https://vitest.dev/) with happy-dom. `package.json` has the versions.
 
 ## Architecture
 
-### Data Flow
+The extension has three parts, which talk through messages and extension storage:
 
-```
-Lecture Page (Data Extraction)
-    ↓
-Curriculum Fetch (Course Structure)
-    ↓
-Transcript Loop (Per Lecture)
-    ├─ Caption Fetch (from Udemy API)
-    ├─ VTT → Markdown Conversion
-    ├─ Progress Update
-    └─ Local State Persistence
-    ↓
-ZIP Generation (File Organization)
-    ├─ Chapter Folders
-    ├─ Individual .md Files
-    └─ Full Transcript Merge
-    ↓
-Download Trigger
-```
+- **Content script** (`content.ts`) runs the download in the course's tab. It reads the course ID from the page, fetches the curriculum, then fetches each lecture's captions, converts them from VTT to Markdown and saves progress after every lecture, so a closed tab can resume from the last completed one. When all lectures are done, it builds the ZIP. It runs on every course page (`*://www.udemy.com/course/*`), not only the player, because Udemy moves between course pages without full page loads and a content script is only injected on a full load.
+- **Popup** (`popup/main.ts`) shows the state it reads from storage, updating as it changes, and sends the content script Start, Pause and Resume messages. A course whose status is still running while no open tab reports a running download is shown as Interrupted.
+- **Background** (`background.ts`) sets the toolbar badge for the content script, which cannot use the action API itself. On install or update it also removes the single shared state older versions saved.
 
-### Entry Points
+Each course has its own state (`local:course:<id>`), so different courses can download in different tabs. Only the tab running a download writes its state; Pause is a message to that tab.
 
-#### Content Script (`content.ts`)
+A failed request is never treated as "no transcript": the lecture stays unfinished, so Resume or Retry fetches it again.
 
-- Runs on all Udemy course pages (`*://www.udemy.com/course/*`), since Udemy moves between them without full page loads; downloads start from the course player (lecture, quiz, etc.)
-- Answers the popup's messages and runs the download loop from `utils/download.ts`, which orchestrates the download workflow
-- Implements pause/resume functionality through state management
-- Recoverable: saves state after each lecture for crash resilience
-- Keeps a separate state per course (`local:course:<id>`), so different courses can download in different tabs. Only the tab running a download writes its state; Pause is a message to that tab
+### Udemy Endpoints
 
-**Workflow**:
-
-1. Extract course ID and title from page DOM
-2. Fetch complete course curriculum
-3. Iterate through lectures and fetch transcripts
-4. Save progress to persistent storage after each lecture
-5. Generate ZIP file when complete
-6. Support pause/resume mid-process
-
-#### Background Script (`background.ts`)
-
-- On install or update, deletes the state saved by older versions (one shared state for all courses). Its download is not carried over; start the course again
-- Sets the toolbar badge for a downloading tab, since content scripts cannot use the action API
-
-#### Popup Script (`main.ts`)
-
-- Shows the course open in the active tab, or explains what to open
-- Provides UI for user control (Start, Pause, Resume)
-- Detects a download whose tab was closed or reloaded mid-download and shows it as Interrupted, instead of Running forever
-- Uses reactive storage watching for automatic UI updates
-- Sends messages to content script to trigger actions
-
-**API Endpoints**:
-
-- Curriculum: `https://www.udemy.com/api-2.0/courses/{courseId}/subscriber-curriculum-items/`
-- Transcripts: `https://www.udemy.com/api-2.0/users/me/subscribed-courses/{courseId}/lectures/{lectureId}/`
-
-### Endpoints Used
-
-1. **Curriculum Endpoint**
-
-   ```
-   GET /api-2.0/courses/{courseId}/subscriber-curriculum-items/
-   ```
-
-   Returns chapters, lectures, and quizzes with metadata
-
-2. **Lecture Endpoint**
-
-   ```
-   GET /api-2.0/users/me/subscribed-courses/{courseId}/lectures/{lectureId}/
-   ```
-
-   Returns asset details including caption URLs
-
-### Error Handling
-
-- A failed request is not treated as "no transcript": the lecture stays unfinished, so a retry fetches it again
-- Continues processing even if individual lecture fails
-
-## Resources
-
-- [WXT Documentation](https://wxt.dev/) - Web extension framework
+- `GET /api-2.0/courses/{courseId}/subscriber-curriculum-items/`: chapters, lectures and quizzes
+- `GET /api-2.0/users/me/subscribed-courses/{courseId}/lectures/{lectureId}/`: a lecture's asset, including its caption URLs
