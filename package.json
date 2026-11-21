@@ -20,12 +20,15 @@
 		"lint": "biome lint",
 		"lint:write": "biome lint --write",
 		"check": "biome check",
-		"check:write": "biome check --write"
+		"check:write": "biome check --write",
+		"release": "GITHUB_TOKEN=$(gh auth token) release-it"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.6.8",
+		"@release-it/keep-a-changelog": "^8.0.1",
 		"@wxt-dev/auto-icons": "^1.1.2",
 		"happy-dom": "^21.0.4",
+		"release-it": "^21.1.2",
 		"typescript": "^7.0.2",
 		"vite": "^8.3.8",
 		"vitest": "^5.1.1",

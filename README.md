@@ -164,6 +164,7 @@ test/
 | `bun run compile`       | Type-check TypeScript (no emit)                     |
 | `bun run test`          | Run the Vitest suite once                           |
 | `bun run test:watch`    | Run Vitest in watch mode                            |
+| `bun run release`       | Cut a release (see [Releasing](#releasing))         |
 
 ### Type Checking
 
@@ -179,6 +180,10 @@ Testing has two layers, because the extension depends on an API it doesn't contr
 
 - **Offline tests (`bun run test`)**: Vitest runs the code in `src/utils` against fixtures in `test/fixtures/`, which are dated snapshots of real Udemy responses. They check that, given those responses, the code produces the right output. Run them on every change. Known bugs are marked `it.fails`. When you fix one, that test starts failing, which tells you to turn it into a normal test.
 - **Live smoke test (`scripts/smoke-test.js`)**: checks whether Udemy still returns what the extension expects. Open any lecture page of a course you're enrolled in, paste the script into the DevTools console, and read the pass/fail table. Run it before a release or when downloads break. If Udemy has changed a format, run `copy(__udemyFixtures)` to capture the new responses and add them as a new fixture set (see `test/fixtures/README.md`).
+
+### Releasing
+
+User-visible changes get an entry under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md), which becomes the next release's notes. `bun run release` (with [release-it](https://github.com/release-it/release-it)) bumps the version, rolls the changelog over, builds both ZIPs, and publishes a signed tag and GitHub release. Preview with `--dry-run` first. The steps and how to write entries: [docs/releasing.md](docs/releasing.md).
 
 ### Technology Stack
 
@@ -327,8 +332,9 @@ Contributions are welcome! Feel free to:
 1. Create a feature branch (`git checkout -b feature/amazing-feature`)
 2. Make your changes and ensure type safety
 3. Run type checking and tests: `bun run compile && bun run test`
-4. Commit with conventional commit messages: `feat:`, `fix:`, `docs:`, etc.
-5. Push and create a Pull Request
+4. Add an entry under `[Unreleased]` in `CHANGELOG.md` for user-visible changes (see [docs/releasing.md](docs/releasing.md#3-writing-changelog-entries))
+5. Commit with conventional commit messages: `feat:`, `fix:`, `docs:`, etc.
+6. Push and create a Pull Request
 
 ## 📚 Resources
 

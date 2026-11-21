@@ -1,0 +1,32 @@
+{
+	"$schema": "./node_modules/release-it/schema/release-it.json",
+	"git": {
+		"requireBranch": "master",
+		"commitMessage": "chore(release): bump version to v${version}",
+		"commitArgs": ["-S"],
+		"tagName": "v${version}",
+		"tagAnnotation": "Release v${version}",
+		"tagArgs": ["-s"]
+	},
+	"npm": {
+		"publish": false
+	},
+	"github": {
+		"release": true,
+		"releaseName": "v${version}",
+		"assets": [
+			".output/udemy-transcript-downloader-${version}-chrome.zip",
+			".output/udemy-transcript-downloader-${version}-firefox.zip"
+		]
+	},
+	"hooks": {
+		"before:init": ["bun run compile", "bun run test"],
+		"after:bump": ["bun run zip", "bun run zip:firefox"]
+	},
+	"plugins": {
+		"@release-it/keep-a-changelog": {
+			"addUnreleased": true,
+			"addVersionUrl": true
+		}
+	}
+}

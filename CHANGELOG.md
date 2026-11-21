@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes to Udemy Transcript Downloader, newest first. Each version's section is published verbatim as its GitHub release notes, so write entries for someone updating the extension, not for someone reading the diff.
+Notable changes to Udemy Transcript Downloader, newest first. Each version's section is published verbatim as its GitHub release notes, so write entries for someone updating the extension, not for someone reading the diff. How to write entries and cut a release: [docs/releasing.md](docs/releasing.md).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
