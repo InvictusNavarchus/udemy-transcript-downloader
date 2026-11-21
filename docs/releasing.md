@@ -26,7 +26,7 @@ Preparing a release (writing the changelog, choosing the version, previewing) is
    bun run release minor --dry-run   # or patch
    ```
 
-   The dry run shows the new version, the release notes (the `[Unreleased]` section), and every command the real run would execute, and changes nothing. It does **not** run the hooks, so it does not type-check, test or build; that is why the first line is there. It fails if `[Unreleased]` is empty.
+   Commit the changelog first: release-it refuses to run on a dirty working tree, even as a dry run. The dry run shows the new version, the release notes (the `[Unreleased]` section), and every command the real run would execute, and changes nothing. It does **not** run the hooks, so it does not type-check, test or build; that is why the first line is there. It fails if `[Unreleased]` is empty.
 
 4. **Run the live smoke test** (human). Udemy's API can change without notice, and only a browser logged in to Udemy can check it: follow "Live smoke test" in the README's Testing section.
 
