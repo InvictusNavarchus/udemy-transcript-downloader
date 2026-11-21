@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-22
+
 Downloads are now kept per course, in any caption language, and can be paused, resumed and retried from any tab. Many transcript and file-name bugs are fixed.
 
 **Upgrading:** the update deletes the download state saved by 0.1.0. A finished course shows Start again; a paused download has to be started over.
@@ -42,5 +44,6 @@ Downloads are now kept per course, in any caption language, and can be paused, r
 
 Initial working prototype.
 
-[Unreleased]: https://github.com/InvictusNavarchus/udemy-transcript-downloader/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/InvictusNavarchus/udemy-transcript-downloader/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/InvictusNavarchus/udemy-transcript-downloader/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/InvictusNavarchus/udemy-transcript-downloader/releases/tag/v0.1.0
