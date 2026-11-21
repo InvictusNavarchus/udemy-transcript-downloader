@@ -10,49 +10,12 @@ A browser extension that enables you to download complete course transcripts fro
 
 - **One-Click Download**: Start downloading all transcripts from a course with a single click
 - **Language Choice**: Pick any caption language the course offers; English is preselected the first time, then your last choice
-- **Chapter Organization**: Transcripts are automatically organized into folders by chapter
-- **Pause & Resume**: Pause downloads mid-process and resume exactly where you left off
-- **ZIP Export**: All transcripts are bundled into a single ZIP file for easy distribution
+- **Chapter Organization**: Transcripts are organized into one folder per chapter, plus a merged transcript of the whole course, bundled into a single ZIP file
+- **Pause & Resume**: Pause downloads mid-process and resume exactly where you left off, even after the tab or browser was closed
 - **Saved Courses**: The popup lists every course you've downloaded with its status and storage size. Save a course's ZIP again without re-downloading, or delete it to free space
-- **Merged Transcript**: Includes a full course transcript combining all lectures
 - **Real-Time Progress**: Live progress tracking shows exactly which lecture is being processed, and the toolbar icon of a downloading tab shows its percentage (grey while paused, ✓ when finished, ! on error)
-- **Robust Error Handling**: Gracefully handles missing transcripts and API errors
+- **Robust Error Handling**: Lectures without a transcript are marked in the ZIP, and lectures that failed to download can be retried on their own
 - **Cross-Browser Support**: Works on Chrome/Edge and Firefox
-- **Lightweight & Efficient**: Random request delays prevent API rate limiting
-
-## 📋 How It Works
-
-1. Open the course player of a Udemy course you're enrolled in (any lecture page)
-2. Click the extension icon in your toolbar. The popup shows the course open in the active tab
-3. Click **"Start Download"** to begin fetching transcripts
-4. The extension:
-   - Extracts the course structure from the page
-   - Fetches captions from Udemy's API for each lecture
-   - Converts VTT format captions to readable markdown
-   - Organizes lectures by chapter
-   - Generates a ZIP file with individual chapter folders plus a merged full transcript
-5. The ZIP file automatically downloads to your default download folder
-
-### Data Flow
-
-```
-Lecture Page (Data Extraction)
-    ↓
-Curriculum Fetch (Course Structure)
-    ↓
-Transcript Loop (Per Lecture)
-    ├─ Caption Fetch (from Udemy API)
-    ├─ VTT → Markdown Conversion
-    ├─ Progress Update
-    └─ Local State Persistence
-    ↓
-ZIP Generation (File Organization)
-    ├─ Chapter Folders
-    ├─ Individual .md Files
-    └─ Full Transcript Merge
-    ↓
-Download Trigger
-```
 
 ## 📥 Installation
 
@@ -84,6 +47,76 @@ Download Trigger
 The extension icon should now appear in your browser's toolbar.
 
 </details>
+
+## 📋 Usage
+
+1. Open the course player of a Udemy course you're enrolled in (any lecture page)
+2. Click the extension icon in your toolbar. The popup shows the course open in the active tab, or tells you what to open instead (for example, on a course's landing page or a page that needs a reload)
+3. Choose the transcript language if you want a different one, then click **Start Download**
+4. When every lecture is done, the ZIP file downloads to your default download folder
+
+The download runs in the course's tab, so keep that tab open until it finishes.
+
+### Controls and Status
+
+- **Pause** takes effect after the lecture being fetched, so the status shows **Pausing** until then. **Resume** during that time cancels the pause
+- If the course is already downloading in another tab, the popup says so and offers to switch to it
+- **Saved courses** lists every course you've downloaded, from any tab (Udemy or not), with its status, progress and approximate storage size:
+  - **Save ZIP** rebuilds the ZIP from the stored transcripts, without fetching anything again
+  - **Delete** asks for a second click, and is unavailable while a tab is downloading that course
+  - A running course has **Pause**, which also works when Udemy has moved that tab to another course page while it keeps downloading
+- The popup shows the download's log (the last 50 entries)
+
+## 📝 File Output Format
+
+### ZIP Structure
+
+```
+CourseTitle_Transcripts.zip
+├── 01_Chapter1/
+│   ├── 01_Lecture1.md
+│   ├── 02_Lecture2.md
+│   └── ...
+├── 02_Chapter2/
+│   ├── 01_Lecture1.md
+│   └── ...
+└── CourseTitle_Full.md
+```
+
+### Markdown Format
+
+- Clean, plain text with light markdown formatting
+- Timestamps and metadata removed for readability
+- Properly formatted for note-taking and searching
+- Compatible with all markdown viewers and note-taking apps
+
+## 🩹 When Something Goes Wrong
+
+- **The tab was closed or reloaded, or the browser closed, mid-download**: the popup shows the course as **Interrupted**. Open the course again and click **Resume** to continue from the last completed lecture
+- **Some lectures failed to download** (HTTP error, rate limit, network): the other lectures continue, and each failed one is marked "[Transcript download failed: …]" in the ZIP. The popup lists the failed lectures with the reason, and **Retry N failed** fetches only those and saves a new ZIP
+- **The download stopped with an error**: **Resume** continues from the saved progress; **Start Over** fetches everything again. If loading the lecture list itself failed, there is nothing to continue and only Start Over is offered. If the error status can't be saved either (e.g. storage full), the course shows as Interrupted, which also offers Resume
+- **A lecture has no transcript**: it is included as "[No Transcript Available]". If it has captions, just not in the chosen language, it says which languages it does have, e.g. "[No German transcript. Available: English, Spanish]", so you know a download in another language would fill the gap
+
+## 🔒 Permissions
+
+The extension requests minimal permissions:
+
+| Permission                                  | Purpose                                                                                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`                                   | Persist download state locally                                                                                                        |
+| `unlimitedStorage`                          | Keep the transcripts of several courses. Chrome otherwise caps extension storage at 10 MB, and a large course alone can take a few MB |
+| `activeTab`                                 | Detect active Udemy page                                                                                                              |
+| `host_permissions: https://www.udemy.com/*` | API access to Udemy services                                                                                                          |
+
+No data is sent to external servers except Udemy's official API.
+
+## ⚠️ Limitations
+
+- **Enrollment Required**: Only works for courses you're enrolled in
+- **One Language per Download**: The language list comes from the course's first lecture with captions, so a few lectures may lack the chosen language. Locales are merged (US and UK English are both "English"), and instructor-written captions are preferred over auto-generated ones
+- **Video Lectures Only**: Skips non-video content (quizzes, documents)
+- **API Dependent**: Requires Udemy API availability (can be shutdown by Udemy at any time)
+- **Rate Limiting**: Random delays to prevent API throttling may increase download time
 
 ## 🛠️ Development
 
@@ -197,6 +230,27 @@ User-visible changes get an entry under `[Unreleased]` in [`CHANGELOG.md`](CHANG
 
 ## 📦 Architecture
 
+### Data Flow
+
+```
+Lecture Page (Data Extraction)
+    ↓
+Curriculum Fetch (Course Structure)
+    ↓
+Transcript Loop (Per Lecture)
+    ├─ Caption Fetch (from Udemy API)
+    ├─ VTT → Markdown Conversion
+    ├─ Progress Update
+    └─ Local State Persistence
+    ↓
+ZIP Generation (File Organization)
+    ├─ Chapter Folders
+    ├─ Individual .md Files
+    └─ Full Transcript Merge
+    ↓
+Download Trigger
+```
+
 ### Entry Points
 
 #### Content Script (`content.ts`)
@@ -223,21 +277,11 @@ User-visible changes get an entry under `[Unreleased]` in [`CHANGELOG.md`](CHANG
 
 #### Popup Script (`main.ts`)
 
-- Shows the course open in the active tab, or explains what to open (a non-Udemy tab, the course landing page, or a page that needs a reload)
+- Shows the course open in the active tab, or explains what to open
 - Provides UI for user control (Start, Pause, Resume)
-- If the course is downloading in another tab, says so and offers to switch to it
-- If a download's tab was closed or reloaded mid-download, shows it as Interrupted with Resume, instead of Running forever
-- Lists all saved courses (from any tab, Udemy or not) with status, progress and approximate storage size. **Save ZIP** rebuilds the ZIP from stored transcripts in the popup itself; **Delete** asks for a second click and is unavailable while a tab is downloading that course; a running course has **Pause**, which also covers a tab Udemy has moved to another course page while it keeps downloading
-- Displays real-time progress, current task, and status badge
+- Detects a download whose tab was closed or reloaded mid-download and shows it as Interrupted, instead of Running forever
 - Uses reactive storage watching for automatic UI updates
 - Sends messages to content script to trigger actions
-
-#### Popup UI (`index.html` + `style.css`)
-
-- Clean, minimal interface matching Udemy's design language
-- Progress bar with lecture counter
-- Status badge (Not started, Running, Pausing, Paused, Interrupted, Completed, Error). Pause takes effect after the lecture being fetched, so the popup shows "Pausing" until then; Resume during that time cancels the pause
-- Current task description for transparency
 
 **API Endpoints**:
 
@@ -264,62 +308,8 @@ User-visible changes get an entry under `[Unreleased]` in [`CHANGELOG.md`](CHANG
 
 ### Error Handling
 
-- Lectures without any captions are included as "[No Transcript Available]"
-- Lectures without captions in the chosen language say which languages they do have, e.g. "[No German transcript. Available: English, Spanish]", so you know a download in another language would fill the gap
-- A failed request (HTTP error, rate limit, network) is not treated as "no transcript": the lecture is marked "[Transcript download failed: …]" in the ZIP and stays unfinished. The popup lists failed lectures with the reason, and **Retry N failed** fetches only those and saves a new ZIP
-- If a download stops with an error after the lecture list has loaded, **Resume** continues from the saved progress; **Start Over** fetches everything again. If loading the lecture list itself failed, there is nothing to continue and only Start Over is offered. If the error status can't be saved either (e.g. storage full), the course shows as Interrupted, which also offers Resume
-- The popup shows the download's log (the last 50 entries)
+- A failed request is not treated as "no transcript": the lecture stays unfinished, so a retry fetches it again
 - Continues processing even if individual lecture fails
-
-## 🔒 Permissions
-
-The extension requests minimal permissions:
-
-| Permission                                  | Purpose                                                                                                                               |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`                                   | Persist download state locally                                                                                                        |
-| `unlimitedStorage`                          | Keep the transcripts of several courses. Chrome otherwise caps extension storage at 10 MB, and a large course alone can take a few MB |
-| `activeTab`                                 | Detect active Udemy page                                                                                                              |
-| `host_permissions: https://www.udemy.com/*` | API access to Udemy services                                                                                                          |
-
-No data is sent to external servers except Udemy's official API.
-
-## 💾 Auto Recover
-
-Downloads are fully recoverable via persistent storage:
-
-If the tab is closed or reloaded, or the browser closes mid-download, the popup shows the course as **Interrupted**. Open the course again and click **Resume** to continue from the last completed lecture.
-
-## 📝 File Output Format
-
-### ZIP Structure
-
-```
-CourseTitle_Transcripts.zip
-├── 01_Chapter1/
-│   ├── 01_Lecture1.md
-│   ├── 02_Lecture2.md
-│   └── ...
-├── 02_Chapter2/
-│   ├── 01_Lecture1.md
-│   └── ...
-└── CourseTitle_Full.md
-```
-
-### Markdown Format
-
-- Clean, plain text with light markdown formatting
-- Timestamps and metadata removed for readability
-- Properly formatted for note-taking and searching
-- Compatible with all markdown viewers and note-taking apps
-
-## ⚠️ Limitations
-
-- **Enrollment Required**: Only works for courses you're enrolled in
-- **One Language per Download**: The language list comes from the course's first lecture with captions, so a few lectures may lack the chosen language. Locales are merged (US and UK English are both "English"), and instructor-written captions are preferred over auto-generated ones
-- **Video Lectures Only**: Skips non-video content (quizzes, documents)
-- **API Dependent**: Requires Udemy API availability (can be shutdown by Udemy at any time)
-- **Rate Limiting**: Random delays to prevent API throttling may increase download time
 
 ## 📄 License
 
