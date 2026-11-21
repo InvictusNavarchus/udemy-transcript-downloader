@@ -13,7 +13,7 @@ How to set up, test and release the extension, and how it works inside. For what
 1. **Clone the repository**
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/InvictusNavarchus/udemy-transcript-downloader.git
    cd udemy-transcript-downloader
    ```
 
