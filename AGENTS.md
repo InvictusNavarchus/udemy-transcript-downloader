@@ -18,7 +18,7 @@ Agents prepare releases; a human reviews the preparation and performs the releas
 2. Propose the increment (`minor` or `patch`) using the rules in docs/releasing.md, and say which entries decide it.
 3. Commit only `CHANGELOG.md`, as `docs(changelog): prepare <version>` (for example `docs(changelog): prepare 0.3.0`), so the human can review the release notes in a single commit. Commit before previewing: release-it refuses to run, even as a dry run, on a dirty working tree.
 4. Run `bun run compile && bun run test`, then `bun run release <increment> --dry-run`. Report the outcome, and quote the release notes from the dry-run output. If the preview shows a problem in the notes, fix it in a new commit or amend yours; it has not been pushed.
-5. Hand over: the proposed increment, the command for the human to run (`bun run release <increment>`), and anything you were unsure about. Mention that the live smoke test in the README is still theirs to run.
+5. Hand over: the proposed increment, the command for the human to run (`bun run release <increment>`), and anything you were unsure about. Mention that the live smoke test in docs/development.md is still theirs to run.
 
 Never perform the release itself. Do not:
 
