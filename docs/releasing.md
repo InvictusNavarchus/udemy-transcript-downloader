@@ -15,7 +15,6 @@ Preparing a release (writing the changelog, choosing the version, previewing) is
    See [§3](#3-writing-changelog-entries) for what to write. Never add a version heading by hand; the release turns `[Unreleased]` into one.
 
 2. **Choose the version** (agent proposes, human decides). While the version is below 1.0:
-
    - **minor** (`0.2.0` → `0.3.0`) when the release adds something or changes behaviour: anything under Added, Changed, Deprecated or Removed, or an `**Upgrading:**` note.
    - **patch** (`0.2.0` → `0.2.1`) when it only fixes bugs.
 
@@ -66,16 +65,16 @@ The notes are for **someone updating the extension**, not someone reading the di
 
 All parts are optional; use what the release needs, in this order. Omit empty headings.
 
-| Part | Use it when |
-| --- | --- |
-| Lead paragraph | Big releases only. One to three sentences: what changed overall. |
+| Part                  | Use it when                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lead paragraph        | Big releases only. One to three sentences: what changed overall.                                                                             |
 | `**Upgrading:**` note | Updating costs the user something or needs an action: saved downloads are deleted, a new permission prompts, the extension must be reloaded. |
-| `### Added` | Something new to use: a feature, button, setting, supported browser. |
-| `### Changed` | Something existing behaves differently: defaults, file names, output format, permissions. |
-| `### Deprecated` | Still works, but will be removed later. |
-| `### Removed` | Gone: a feature, setting or supported browser. |
-| `### Fixed` | A bug that happened, or one that could have. |
-| `### Security` | Anything about a vulnerability, including dependency updates made for one. |
+| `### Added`           | Something new to use: a feature, button, setting, supported browser.                                                                         |
+| `### Changed`         | Something existing behaves differently: defaults, file names, output format, permissions.                                                    |
+| `### Deprecated`      | Still works, but will be removed later.                                                                                                      |
+| `### Removed`         | Gone: a feature, setting or supported browser.                                                                                               |
+| `### Fixed`           | A bug that happened, or one that could have.                                                                                                 |
+| `### Security`        | Anything about a vulnerability, including dependency updates made for one.                                                                   |
 
 Start an entry with `**Behaviour change:**` when it could surprise someone who updates without reading further.
 
@@ -87,7 +86,7 @@ The deciding question is **would someone updating notice this, or need to act on
 - Tests, refactors, dependency updates, build and tooling changes, and most documentation changes do not. They are in `git log`, which the compare links cover.
 - **Compare with the last release, not commit by commit.** A bug introduced and fixed again since the last release never reached users, so it gets no entry; describe only the net result of the feature it was in.
 
-**Hardening counts as a fix** if you can finish this sentence: "Before this, ___ could happen when ___." Write it with "could", so it claims nothing that did not happen:
+**Hardening counts as a fix** if you can finish this sentence: "Before this, \_\_\_ could happen when ___." Write it with "could", so it claims nothing that did not happen:
 
 ```markdown
 - The ZIP download could be cancelled in some browsers because its link was released too early.
