@@ -12,5 +12,18 @@ export default defineConfig({
 				default_popup: 'entrypoints/popup/index.html',
 			},
 		};
+
+		if (browser === 'firefox') {
+			manifest.browser_specific_settings = {
+				gecko: {
+					id: 'udemy-transcript-downloader@InvictusNavarchus',
+					data_collection_permissions: {
+						required: ['none'],
+					},
+				},
+			};
+		}
+
+		return manifest;
 	},
 });
