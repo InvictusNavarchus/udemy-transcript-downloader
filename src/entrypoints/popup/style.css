@@ -1,9 +1,4 @@
-:root {
-	--primary: #a435f0;
-	--bg: #ffffff;
-	--text: #2d2f31;
-	--gray: #d1d7dc;
-}
+@import "../../assets/tokens.css";
 
 body {
 	width: 300px;
@@ -18,7 +13,42 @@ header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	gap: 8px;
 	margin-bottom: 12px;
+}
+
+.header-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: 1px solid var(--gray);
+	border-radius: 50%;
+	background: var(--bg);
+	color: var(--muted);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.icon-btn:hover {
+	border-color: var(--text);
+	color: var(--text);
+}
+
+.icon-btn:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 2px;
 }
 
 h1 {
