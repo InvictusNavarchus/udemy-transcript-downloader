@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- A welcome page opens on first install explaining how to pin the toolbar icon and start a download, and can be reopened anytime from the `?` button in the popup.
+
 ## [0.2.0] - 2026-11-22
 
 Downloads are now kept per course, in any caption language, and can be paused, resumed and retried from any tab. Many transcript and file-name bugs are fixed.

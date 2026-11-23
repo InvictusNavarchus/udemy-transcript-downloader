@@ -18,6 +18,7 @@ const els = {
 	course: getElement<HTMLElement>('course'),
 	title: getElement<HTMLElement>('course-title'),
 	badge: getElement<HTMLElement>('status-badge'),
+	help: getElement<HTMLButtonElement>('btn-help'),
 	fill: getElement<HTMLElement>('fill'),
 	count: getElement<HTMLElement>('count'),
 	task: getElement<HTMLElement>('task'),
@@ -386,6 +387,10 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
 });
 browser.storage.onChanged.addListener((changes, area) => {
 	if (area === 'local' && Object.keys(changes).some((key) => key.startsWith('course:'))) scheduleRefresh();
+});
+
+els.help.addEventListener('click', () => {
+	void browser.tabs.create({ url: browser.runtime.getURL('/welcome.html') });
 });
 
 if (page.kind === 'course') {

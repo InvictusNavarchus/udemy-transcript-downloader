@@ -39,7 +39,7 @@ How to set up, test and release the extension, and how it works inside. For what
 
 ## Project Layout
 
-- `src/entrypoints/`: the content script, background script and popup. WXT builds the manifest from them
+- `src/entrypoints/`: the content script, background script, popup and welcome page. WXT builds the manifest from them
 - `src/utils/`: everything else, including the Udemy API client, the download loop and ZIP generation. The tests cover this directory
 - `scripts/smoke-test.js`: console check against the live Udemy API
 - `test/fixtures/`: trimmed snapshots of real Udemy responses; `test/utils/`: Vitest tests for `src/utils`
@@ -88,7 +88,7 @@ The extension has three parts, which talk through messages and extension storage
 
 - **Content script** (`content.ts`) runs the download in the course's tab. It reads the course ID from the page, fetches the curriculum, then fetches each lecture's captions, converts them from VTT to Markdown and saves progress after every lecture, so a closed tab can resume from the last completed one. When all lectures are done, it builds the ZIP. It runs on every course page (`*://www.udemy.com/course/*`), not only the player, because Udemy moves between course pages without full page loads and a content script is only injected on a full load.
 - **Popup** (`popup/main.ts`) shows the state it reads from storage, updating as it changes, and sends the content script Start, Pause and Resume messages. A course whose status is still running while no open tab reports a running download is shown as Interrupted.
-- **Background** (`background.ts`) sets the toolbar badge for the content script, which cannot use the action API itself. On install or update it also removes the single shared state older versions saved.
+- **Background** (`background.ts`) sets the toolbar badge for the content script, which cannot use the action API itself. On install or update it removes the single shared state older versions saved, and on fresh install it opens the welcome page (`welcome/index.html`).
 
 Each course has its own state (`local:course:<id>`), so different courses can download in different tabs. Only the tab running a download writes its state; Pause is a message to that tab.
 
